@@ -1,0 +1,780 @@
+// Aimlabs Replica - Jumbo Tile Frenzy
+;;
+
+        // Performance monitoring
+        this.performanceStats = {
+            fps: 0,
+            frameTime: 0,
+            frameCount: 0,
+            lastTime: 0,
+            refreshRate: 60, // Default assumption
+            frameTimes: [],
+            maxFrameTimeHistory: 60, // Keep 60 frame times for averaging
+            fpsLimit: null // FPS limit (null = unlimited)
+        };
+
+        // Graphics settings
+        this.graphicsSettings = {
+            preset: 'ultra', // ultra, high, medium, low, potato
+            antialiasing: 'auto', // auto, on, off
+            shadowQuality: 'high', // high, medium, low, off
+            particleCount: 'high', // high, medium, low, off
+            pixelRatio: 'auto' // auto, 1, 0.75, 0.5
+        };
+
+        // Audio system
+        this.audioContext = null;
+        this.setupAudio();
+
+        // Particle system
+        this.particles = [];
+
+        // Advanced sensitivity conversion data with FOV and scaling considerations
+        this.sensitivityData = {
+            overwatch: {
+                name: "Overwatch 2",
+                baseFOV: 103,
+                sensitivityScale: 1.0,
+                type: "cm360", // cm/360°
+                cm360Ratio: 1.0
+            },
+            valorant: {
+                name: "Valorant",
+                baseFOV: 103,
+                sensitivityScale: 1.0,
+                type: "cm360",
+                cm360Ratio: 1.0
+            },
+            csgo: {
+                name: "CS:GO",
+                baseFOV: 90,
+                sensitivityScale: 1.0,
+                type: "inch360",
+                cm360Ratio: 2.54 // inches to cm conversion
+            },
+            apex: {
+                name: "Apex Legends",
+                baseFOV: 110,
+                sensitivityScale: 1.0,
+                type: "cm360",
+                cm360Ratio: 1.0
+            },
+            fortnite: {
+                name: "Fortnite",
+                baseFOV: 90,
+                sensitivityScale: 1.0,
+                type: "cm360",
+                cm360Ratio: 1.0
+            },
+            cod: {
+                name: "Call of Duty",
+                baseFOV: 90,
+                sensitivityScale: 1.0,
+                type: "inch360",
+                cm360Ratio: 2.54
+            },
+            rainbow: {
+                name: "Rainbow Six Siege",
+                baseFOV: 90,
+                sensitivityScale: 1.0,
+                type: "cm360",
+                cm360Ratio: 1.0
+            }
+        };
+
+        this.init();
+        this.setupEventListeners();
+        this.animate();
+    }
+
+    ;);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for performance
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.BasicShadowMap; // Use basic shadows for better performance
+
+        // Lighting setup
+        this.setupLighting();
+
+        // Create game area (invisible walls/floor)
+        this.createGameArea();
+
+        // Apply initial settings
+        this.applyDifficultySettings();
+        this.applyGameModeSettings();
+
+        // Handle window resize
+        window.addEventListener('resize', () => this.onWindowResize());
+
+        // Handle pointer lock changes
+        document.addEventListener('pointerlockchange', () => this.onPointerLockChange());
+    }
+
+    ;
+
+    ; ;
+    }
+
+    ;
+
+    ;
+
+    ;
+
+    ;);
+
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+            // Set initial position
+            particle.position.copy(position);
+            particle.position.x += (Math.random() - 0.5) * 0.5;
+            particle.position.y += (Math.random() - 0.5) * 0.5;
+            particle.position.z += (Math.random() - 0.5) * 0.5;
+
+            // Set velocity
+            particle.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.2
+            );
+
+            particle.life = 1.0; // Full life
+            particle.maxLife = 1.0;
+
+            this.scene.add(particle);
+            this.particles.push(particle);
+        }
+    }
+
+    ;
+        }
+    }
+
+    ;);
+        this.gamePlane = new THREE.Mesh(planeGeometry, planeMaterial);
+        this.gamePlane.position.z = -2;
+        this.scene.add(this.gamePlane);
+    }
+
+    ;);
+        document.getElementById('game-mode-select').addEventListener('change', (e) => {
+            this.gameMode = e.target.value;
+            this.applyGameModeSettings();
+        });
+        document.getElementById('target-lifetime').addEventListener('input', (e) => {
+            this.targetLifetime = e.target.value * 1000;
+            document.getElementById('target-lifetime-value').textContent = e.target.value + 's';
+        });
+        document.getElementById('spawn-delay').addEventListener('input', (e) => {
+            this.spawnDelay = e.target.value * 1000;
+            document.getElementById('spawn-delay-value').textContent = e.target.value + 's';
+        });
+        document.getElementById('fov-slider').addEventListener('input', (e) => {
+            this.fov = parseInt(e.target.value);
+            this.camera.fov = this.fov;
+            this.camera.updateProjectionMatrix();
+            document.getElementById('fov-value').textContent = this.fov + '°';
+        });
+
+        // Graphics settings event listeners
+        document.getElementById('graphics-preset').addEventListener('change', (e) => this.applyGraphicsPreset(e.target.value));
+        document.getElementById('antialiasing').addEventListener('change', (e) => this.updateAntialiasing(e.target.value));
+        document.getElementById('shadow-quality').addEventListener('change', (e) => this.updateShadowQuality(e.target.value));
+        document.getElementById('particle-count').addEventListener('change', (e) => this.updateParticleCount(e.target.value));
+        document.getElementById('fps-limit').addEventListener('change', (e) => this.updateFpsLimit(e.target.value));
+        document.getElementById('pixel-ratio').addEventListener('change', (e) => this.updatePixelRatio(e.target.value));
+        document.getElementById('apply-graphics-btn').addEventListener('click', () => this.applyGraphicsSettings());
+        document.getElementById('graphics-back-btn').addEventListener('click', () => this.backToMenuFromGraphics());
+
+        // Sensitivity settings event listeners
+        document.getElementById('game-select').addEventListener('change', (e) => {
+            const game = e.target.value;
+            const fov = this.sensitivityData[game].baseFOV;
+            document.getElementById('fov-input').placeholder = fov.toString();
+            document.getElementById('fov-input').value = fov.toString();
+        });
+
+        document.getElementById('separate-axes').addEventListener('change', (e) => {
+            const container = document.getElementById('separate-axes-container');
+            container.style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('test-sens-btn').addEventListener('click', () => this.testSensitivity());
+        document.getElementById('save-sens-btn').addEventListener('click', () => this.saveSensitivity());
+
+        document.getElementById('settings-back-btn').addEventListener('click', () => this.backToMenu());
+
+        // Load saved settings
+        this.loadSavedSensitivitySettings();
+        this.loadGraphicsSettings();
+
+        // Set initial FOV value
+        document.getElementById('fov-input').value = this.sensitivityData.fortnite.baseFOV;
+    }
+
+    ;
+
+        // Use separate sensitivities if available, otherwise use the same for both axes
+        const sensH = this.mouseSensitivity;
+        const sensV = this.mouseSensitivityV || this.mouseSensitivity;
+
+        // Only apply movement if values are valid numbers
+        if (isFinite(deltaX) && isFinite(deltaY) && isFinite(sensH) && isFinite(sensV)) {
+            this.cameraRotation.y -= deltaX * sensH;
+            this.cameraRotation.x -= deltaY * sensV;
+
+            // Limit vertical rotation
+            this.cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotation.x));
+
+            // Ensure camera rotation values are valid
+            if (isFinite(this.cameraRotation.y) && isFinite(this.cameraRotation.x)) {
+                // Apply rotation to camera using Euler angles for proper FPS controls
+                this.camera.rotation.order = 'YXZ'; // This is important for FPS controls
+                this.camera.rotation.y = this.cameraRotation.y;
+                this.camera.rotation.x = this.cameraRotation.x;
+                this.camera.rotation.z = 0; // No roll in FPS games
+            } else {
+                // Reset camera rotation if it became invalid
+                console.warn('Camera rotation became invalid, resetting');
+                this.cameraRotation = { x: 0, y: 0 };
+                this.camera.rotation.set(0, 0, 0);
+            }
+        }
+    }
+
+    ;
+
+        event.preventDefault(); // Prevent default browser behavior for game clicks
+
+        // Prevent processing the same click multiple times
+        if (this.lastClickTime && Date.now() - this.lastClickTime < 50) {
+            return; // Ignore clicks too close together
+        }
+        this.lastClickTime = Date.now();
+
+        // Ultra-fast, dead-center raycasting for instant hit detection
+        this.raycaster.setFromCamera(this.centerVector, this.camera);
+
+        // Try raycasting first
+        const intersects = this.raycaster.intersectObjects(this.targets, false);
+
+        let hitFound = false;
+
+        ;
+        }
+
+        // Fallback: Check targets by angle/distance if raycast fails
+        ;
+                }
+            }
+        }
+
+        ;
+    }
+
+    ; else ;
+        } else ; ;
+
+            console.log('Tab restart processing completed');
+        } else {
+            console.log('Other key pressed:', event.code);
+        }
+    }
+
+    ;
+
+    ; else {
+            // Pointer is unlocked - hide crosshair
+            this.crosshairElement.style.display = 'none';
+            ;
+        }
+    }
+
+    ;
+
+        // Show crosshair and lock pointer for FPS controls
+        this.crosshairElement.style.display = 'block';
+        document.body.requestPointerLock();
+
+        // Hide sensitivity converter during gameplay
+        document.getElementById('sensitivity-converter').style.display = 'none';
+
+        this.updateUI();
+    }
+
+    ; else {
+                    objectsToRemove.push(child);
+                }
+            });
+
+            // Remove and dispose of game objects
+            objectsToRemove.forEach(child => {
+                this.scene.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+            console.log('Scene cleanup completed, removed', objectsToRemove.length, 'objects');
+
+            // Clear all game data
+            this.targets = [];
+            this.currentTarget = null;
+            this.targetSpawnTimer = 0;
+
+            // Reset camera
+            this.camera.position.set(0, 0, 5);
+            this.camera.rotation.set(0, 0, 0);
+            this.cameraRotation = { x: 0, y: 0 };
+
+            // Reset all game statistics
+            this.score = 0;
+            this.hits = 0;
+            this.misses = 0;
+            this.elapsedTime = 0;
+            this.startTime = Date.now();
+            this.particles = [];
+
+            // Hide UI overlays and show game UI
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('pause-menu').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'block';
+
+            // Clear DOM elements
+            const hitFeedbacks = document.querySelectorAll('.hit-feedback');
+            hitFeedbacks.forEach(el => el.remove());
+            const highlights = document.querySelectorAll('.target-highlight');
+            highlights.forEach(el => el.remove());
+
+            // Show crosshair and lock pointer for gameplay
+            this.crosshairElement.style.display = 'block';
+            document.body.requestPointerLock();
+
+            // Spawn new targets
+            console.log('Spawning new targets for direct restart');
+            ;
+            console.log('Direct restart completed, targets spawned:', this.targets.length);
+
+            // Update UI immediately
+            this.updateUI();
+
+        } ;
+
+    // Graphics Settings Functions
+    ;;
+
+    ;;
+
+    ;
+
+        // Update UI to reflect preset changes
+        this.updateGraphicsUI();
+    }
+
+    ;
+
+    ;
+
+    ;
+
+    ;
+
+    ; else {
+            this.performanceStats.fpsLimit = parseInt(value);
+        }
+    }
+
+    ;
+
+    ;
+        pixelRatio = Math.min(pixelRatio, 2); // Cap at 2x
+
+        // Reinitialize renderer with new settings
+        this.renderer.dispose();
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('game-canvas'),
+            antialias: antialias,
+            powerPreference: 'high-performance'
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(pixelRatio);
+
+        // Apply shadow settings
+        this.renderer.shadowMap.enabled = this.graphicsSettings.shadowQuality !== 'off';
+        ;
+        }
+
+        // Re-setup lighting with new shadow settings
+        this.setupLighting();
+
+        // Save settings to localStorage
+        localStorage.setItem('webclicker_graphics_settings', JSON.stringify(this.graphicsSettings));
+
+        alert('Graphics settings applied! Some changes may require a game restart.');
+    }
+
+    ;;
+                this.applyGraphicsSettings();
+            } ;
+        }
+    }
+
+    ;
+            }
+            console.log('3. Scene cleanup completed, cleared', clearedCount, 'objects');
+
+            // Recreate essential scene objects
+            console.log('4. Recreating scene objects...');
+            this.setupLighting();
+            this.createGameArea();
+            console.log('5. Scene objects recreated');
+
+            // Clear all game data
+            this.targets = [];
+            this.currentTarget = null;
+            this.targetSpawnTimer = 0;
+            console.log('6. Game data cleared');
+
+            // Reset camera completely
+            this.camera.position.set(0, 0, 5);
+            this.camera.rotation.set(0, 0, 0);
+            this.cameraRotation = { x: 0, y: 0 };
+            console.log('7. Camera reset');
+
+            // Reset all game statistics
+            this.score = 0;
+            this.hits = 0;
+            this.misses = 0;
+            this.elapsedTime = 0;
+            this.startTime = 0;
+            console.log('8. Statistics reset');
+
+            // Clear all particle effects
+            this.particles.forEach(particle => {
+                this.scene.remove(particle);
+            });
+            this.particles = [];
+            console.log('9. Particles cleared');
+
+            // Hide all UI overlays and screens
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('pause-menu').style.display = 'none';
+            document.getElementById('settings-screen').style.display = 'none';
+            document.getElementById('sensitivity-screen').style.display = 'none';
+            document.getElementById('sensitivity-backdrop').style.display = 'none';
+            document.getElementById('game-ui').style.display = 'none';
+            console.log('10. UI overlays hidden');
+
+            // Clear any leftover DOM elements
+            const hitFeedbacks = document.querySelectorAll('.hit-feedback');
+            hitFeedbacks.forEach(el => el.remove());
+
+            const highlights = document.querySelectorAll('.target-highlight');
+            highlights.forEach(el => el.remove());
+            console.log('11. DOM elements cleared');
+
+            // Reset crosshair
+            this.crosshairElement.style.display = 'none';
+            document.exitPointerLock();
+            console.log('12. Crosshair and pointer lock reset');
+
+            console.log('Complete game reset - all previous session data cleared');
+
+            // Start completely fresh game
+            console.log('About to call startGame() from restartGame');
+            this.startGame();
+            console.log('startGame() completed, targets should be spawned:', this.targets.length);
+
+        } ;
+    }
+
+    ;);
+        this.targets = [];
+    }
+
+    ;
+
+        const geometry = new THREE.SphereGeometry(radius, 16, 16); // Fewer segments for better performance
+
+        // All targets are light matte blue like in Aimlabs - highly visible
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x87CEEB, // Light blue color
+            shininess: 30, // Lower shininess for matte finish
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.3 // Much more visible
+        });
+
+        const target = new THREE.Mesh(geometry, material);
+        target.castShadow = true;
+        target.receiveShadow = true;
+
+        // Position targets with proper spacing to prevent overlap
+        const maxX = 5; // Increased area for better target spacing
+        const maxY = 4; // Increased area for better target spacing
+        const minDistance = 3.0; // Minimum distance between targets (accounting for target size)
+        let attempts = 0;
+        let validPosition = false;
+
+        ;
+            }
+
+            ;
+
+            attempts++;
+        }
+
+        // If we couldn't find a valid position after many attempts, place it in a fallback area
+        ;
+
+        target.position.z = -3; // Position targets in front of camera
+
+        // Add spawn time for animation
+        target.spawnTime = Date.now();
+
+        // No spawn animation - targets appear at full size immediately for instant hit detection
+
+        this.scene.add(target);
+        this.targets.push(target);
+        console.log('Target added to scene and targets array. Total targets:', this.targets.length);
+
+        // Set as current target if none exists
+        ;
+    }
+
+    ;
+        }, 300);
+    }
+
+    ;
+
+    ;
+
+        ;
+
+        // Visual feedback
+        this.createHitFeedback(target.position, '+100');
+
+        // Remove target with animation
+        const hitAnimation = { scale: 1, opacity: 1 };
+        gsap.to(hitAnimation, {
+            scale: 1.5,
+            opacity: 0,
+            duration: 0.2,
+            ease: "power2.out",
+            onUpdate: () => {
+                target.scale.set(hitAnimation.scale, hitAnimation.scale, hitAnimation.scale);
+                target.material.opacity = hitAnimation.opacity;
+                target.material.transparent = true;
+            },
+            onComplete: () => {
+                this.scene.remove(target);
+                this.targets.splice(this.targets.indexOf(target), 1);
+            }
+        });
+
+        this.updateUI();
+    }
+
+    ;
+
+    ;
+        }, 500);
+    }
+
+    ;`;
+        document.getElementById('accuracy').textContent = `Accuracy: ${this.getAccuracy()}%`;
+
+        ;s`;
+
+            // End game after 30 seconds
+            ;
+        }
+    }
+
+    ; else ; else {
+                fpsElement.classList.add('fps-bad');
+            }
+        }
+
+        ;ms`;
+        }
+
+        ;Hz`;
+        }
+
+        ; else ; else ; else {
+                pacingText = 'Poor';
+            }
+
+            framePacingElement.textContent = pacingText;
+        }
+    }
+
+    ;
+
+    ;
+                }
+
+                console.log('Loaded saved sensitivity settings:', settings);
+            } ;
+        } else {
+            this.mouseSensitivity = 0.002; // default
+        }
+    }
+
+    ;
+
+        let sensH = sensitivity;
+        let sensV = sensitivity;
+
+        ;
+        }
+
+        // Calculate mouse sensitivity based on game data and FOV
+        const gameData = this.sensitivityData[game];
+        const baseFOV = gameData.baseFOV;
+
+        // Convert game sensitivity to our internal mouse sensitivity scale
+        // Account for FOV differences and input scaling format
+        let mouseSensH = this.convertGameSensitivityToMouse(sensH, gameData, fov);
+        let mouseSensV = separateAxes ? this.convertGameSensitivityToMouse(sensV, gameData, fov) : mouseSensH;
+
+        // Apply to game
+        this.mouseSensitivity = mouseSensH;
+        this.mouseSensitivityV = mouseSensV;
+
+        // Start test mode (just start the game with the new sensitivity)
+        this.startGame();
+
+        console.log(`Testing sensitivity - Game: ${game}, Sens: ${sensitivity}, FOV: ${fov}, MouseSens: ${mouseSensH}`);
+    }
+
+    ;
+
+        let sensH = sensitivity;
+        let sensV = sensitivity;
+
+        ;
+        }
+
+        // Calculate and save mouse sensitivity
+        const gameData = this.sensitivityData[game];
+        let mouseSensH = this.convertGameSensitivityToMouse(sensH, gameData, fov);
+        let mouseSensV = separateAxes ? this.convertGameSensitivityToMouse(sensV, gameData, fov) : mouseSensH;
+
+        this.mouseSensitivity = mouseSensH;
+        this.mouseSensitivityV = mouseSensV;
+
+        // Save settings to localStorage
+        const settings = {
+            mouseSensitivity: mouseSensH,
+            mouseSensitivityV: mouseSensV,
+            gameSettings: {
+                game: game,
+                sensitivity: sensitivity,
+                sensH: sensH,
+                sensV: sensV,
+                fov: fov,
+                separateAxes: separateAxes
+            }
+        };
+
+        localStorage.setItem('webclicker_sensitivity_settings', JSON.stringify(settings));
+
+        alert(`Sensitivity saved!\nGame: ${game}\nSensitivity: ${sensitivity}${separateAxes ? ` (H: ${sensH}, V: ${sensV})` : ''}\nFOV: ${fov}°`);
+    }
+
+    ;
+
+        // Apply FOV correction
+        const fovCorrection = Math.tan((baseFOV * Math.PI) / 360) / Math.tan((customFOV * Math.PI) / 360);
+        baseConversion *= fovCorrection;
+
+        // Scale by game sensitivity
+        let mouseSens = baseConversion * gameSens;
+
+        // Fine-tune for specific games to match feel
+        ;
+
+        return Math.max(0.0001, Math.min(0.1, mouseSens)); // Clamp to reasonable range
+    }
+
+    ;
+
+
+    ;
+
+    ;
+
+    ;
+
+    ;
+
+    ;
+
+    ;,
+            medium: { lifetime: 2000, spawnDelay: 1000, maxTargets: 3 },
+            hard: { lifetime: 1500, spawnDelay: 800, maxTargets: 4 },
+            expert: { lifetime: 1000, spawnDelay: 600, maxTargets: 5 }
+        };
+
+        const diff = settings[this.difficulty];
+        this.targetLifetime = diff.lifetime;
+        this.spawnDelay = diff.spawnDelay;
+        this.maxTargets = diff.maxTargets;
+
+        // Update UI
+        document.getElementById('target-lifetime').value = (diff.lifetime / 1000).toFixed(1);
+        document.getElementById('target-lifetime-value').textContent = (diff.lifetime / 1000).toFixed(1) + 's';
+        document.getElementById('spawn-delay').value = (diff.spawnDelay / 1000).toFixed(1);
+        document.getElementById('spawn-delay-value').textContent = (diff.spawnDelay / 1000).toFixed(1) + 's';
+    }
+
+    ;
+    }
+
+    ;
+
+    ;
+        }
+
+        // Performance monitoring
+        const deltaTime = currentTime - this.performanceStats.lastTime;
+        this.performanceStats.lastTime = currentTime;
+
+        ;
+
+            // Calculate FPS
+            const avgFrameTime = this.performanceStats.frameTimes.reduce((a, b) => a + b, 0) / this.performanceStats.frameTimes.length;
+            this.performanceStats.fps = Math.round(1000 / avgFrameTime);
+            this.performanceStats.frameTime = Math.round(avgFrameTime);
+
+            // Estimate refresh rate
+            ;
+        }
+
+        this.performanceStats.frameCount++;
+
+        // Update performance display every 10 frames to avoid DOM spam
+        ;
+
+        // Game logic - only run when playing to save performance
+        ;
+
+        // Always render for smooth UI transitions
+        this.renderer.render(this.scene, this.camera);
+
+        // Continue animation loop
+        requestAnimationFrame((time) => this.animate(time));
+    }
+
+    ;);
+        }
+
+        // Update UI less frequently when performance is critical
+        ;
+    }
+}
+
+// Initialize game when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new AimlabsGame();
+});
