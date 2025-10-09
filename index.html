@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebClicker - Precision Aim Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-menu {
+            height: 100vh;
+            padding: 0.75rem 0.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 1rem;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .menu-header {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .menu-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .menu-card {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.25rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .menu-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .menu-card.start-card {
+            grid-column: 1 / -1;
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(78, 205, 196, 0.1));
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .card-header {
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(45deg, #00d4ff, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-subtitle {
+            color: #888;
+            font-size: 0.8rem;
+            font-weight: 400;
+        }
+
+        /* Form styling within cards */
+        .menu-card .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .menu-card label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .menu-card select,
+        .menu-card input[type="number"],
+        .menu-card input[type="range"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .menu-card select:focus,
+        .menu-card input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+        }
+
+        .menu-card .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .menu-card .button-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .menu-card .btn {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .menu-card .btn-primary {
+            background: linear-gradient(45deg, #00d4ff, #4ecdc4);
+            color: #000;
+        }
+
+        .menu-card .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .menu-card .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .menu-card .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .preset-btn {
+            padding: 0.5rem 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .menu-cards {
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .menu-cards {
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 0.875rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-menu {
+                padding: 0.375rem 0.125rem;
+                gap: 0.75rem;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+            }
+
+            .menu-header .logo {
+                font-size: 1.8rem;
+            }
+
+            .menu-header .subtitle {
+                font-size: 0.7rem;
+            }
+
+            .menu-cards {
+                grid-template-columns: 1fr;
+                gap: 0.625rem;
+                max-width: 100%;
+            }
+
+            .menu-card {
+                padding: 0.875rem;
+            }
+
+            .card-title {
+                font-size: 1rem;
+            }
+
+            .menu-card .form-group {
+                margin-bottom: 0.625rem;
+            }
+
+            .menu-card .button-group {
+                flex-direction: column;
+                margin-top: 0.875rem;
+            }
+
+            .menu-card .btn {
+                margin-bottom: 0.125rem;
+                padding: 0.625rem 0.875rem;
+                font-size: 0.875rem;
+            }
+
+            .preset-buttons {
+                gap: 0.125rem;
+                padding-top: 0.625rem;
+                margin-top: 0.625rem;
+            }
+
+            .preset-btn {
+                padding: 0.3125rem 0.5rem;
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-menu {
+                padding: 0.125rem 0.0625rem;
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+                gap: 0.5rem;
+            }
+
+            .menu-header {
+                margin-bottom: 0.5rem;
+            }
+
+            .menu-header .logo {
+                font-size: 1.5rem;
+                margin-bottom: 0.125rem;
+            }
+
+            .menu-header .subtitle {
+                font-size: 0.65rem;
+            }
+
+            .menu-cards {
+                gap: 0.5rem;
+            }
+
+            .menu-card {
+                padding: 0.75rem;
+                border-radius: 10px;
+            }
+
+            .card-header {
+                margin-bottom: 0.75rem;
+            }
+
+            .card-title {
+                font-size: 0.9rem;
+                margin-bottom: 0.125rem;
+            }
+
+            .card-subtitle {
+                font-size: 0.7rem;
+            }
+
+            .menu-card .form-group {
+                margin-bottom: 0.5rem;
+            }
+
+            .menu-card select,
+            .menu-card input {
+                padding: 0.4375rem;
+                font-size: 0.85rem;
+            }
+
+            .menu-card label {
+                font-size: 0.8rem;
+                margin-bottom: 0.3125rem;
+            }
+
+            .menu-card .button-group {
+                margin-top: 0.75rem;
+            }
+
+            .menu-card .btn {
+                padding: 0.5625rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #888;
+            margin-bottom: 2.5rem;
+            font-weight: 300;
+        }
+
+        .menu-button {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            margin: 0.75rem 0;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .menu-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .menu-button.primary {
+            background: #00d4ff;
+            border: none;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .menu-button.primary:hover {
+            background: #00b8e6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+
+        /* Game styles */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: none; /* Hidden initially */
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        #start-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #start-screen p {
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            display: none;
+        }
+
+
+        /* Select dropdown hover effects */
+        select:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 5px rgba(0, 212, 255, 0.3);
+        }
+
+        #score-display {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        #timer {
+            font-size: 1.2rem;
+            color: #4ecdc4;
+        }
+
+        #accuracy {
+            font-size: 1.2rem;
+            color: #ff6b6b;
+        }
+
+        #sensitivity-converter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            pointer-events: auto;
+            min-width: 300px;
+        }
+
+        #sensitivity-converter h3 {
+            margin-bottom: 15px;
+            color: #4ecdc4;
+        }
+
+        .sensitivity-input {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .sensitivity-input label {
+            width: 120px;
+            font-size: 0.9rem;
+        }
+
+        .sensitivity-input input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .sensitivity-input input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .settings-menu {
+            text-align: center;
+            max-width: 500px;
+            padding: 2rem;
+        }
+
+        .settings-menu h2 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            color: #00d4ff;
+        }
+
+        .setting-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .setting-group select,
+        .setting-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            background: #4ecdc4;
+        }
+
+        .setting-group input[type="range"]::-moz-range-thumb {
+            background: #4ecdc4;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            pointer-events: auto;
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #game-over h2 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #4ecdc4;
+            background: linear-gradient(45deg, #4ecdc4, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Performance Grade */
+        .performance-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            gap: 20px;
+        }
+
+        .performance-grade {
+            font-size: 3rem;
+            font-weight: 900;
+            padding: 15px 30px;
+            border-radius: 16px;
+            border: 3px solid;
+            min-width: 100px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .grade-s { background: linear-gradient(45deg, #ffd700, #ffb347); color: #000; border-color: #ffd700; }
+        .grade-a { background: linear-gradient(45deg, #4ecdc4, #44a08d); color: #fff; border-color: #4ecdc4; }
+        .grade-b { background: linear-gradient(45deg, #45b7d1, #3a9bb8); color: #fff; border-color: #45b7d1; }
+        .grade-c { background: linear-gradient(45deg, #f39c12, #e67e22); color: #fff; border-color: #f39c12; }
+        .grade-d { background: linear-gradient(45deg, #ff6b6b, #e74c3c); color: #fff; border-color: #ff6b6b; }
+        .grade-f { background: linear-gradient(45deg, #95a5a6, #7f8c8d); color: #fff; border-color: #95a5a6; }
+
+        .performance-title {
+            font-size: 1.5rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .stat-card p {
+            color: #888;
+            font-size: 0.8rem;
+            margin: 0;
+        }
+
+        /* Progress Bars */
+        .progress-section {
+            margin-bottom: 2rem;
+        }
+
+        .progress-item {
+            margin-bottom: 12px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .accuracy-fill { background: linear-gradient(90deg, #4ecdc4, #44a08d); }
+        .efficiency-fill { background: linear-gradient(90deg, #00d4ff, #0099cc); }
+        .hit-rate-fill { background: linear-gradient(90deg, #ffd700, #ffb347); }
+        .reaction-fill { background: linear-gradient(90deg, #ff6b6b, #e74c3c); }
+
+        /* Legacy stats for compatibility */
+        #final-stats {
+            margin-bottom: 2rem;
+            display: none; /* Hide the old simple stats */
+        }
+
+        #final-stats div {
+            margin: 10px 0;
+            font-size: 1.1rem;
+        }
+
+        /* Mobile responsiveness for end game */
+        @media (max-width: 768px) {
+            #game-over {
+                padding: 1.5rem 1rem;
+                width: 98%;
+                max-height: 95vh;
+            }
+
+            #game-over h2 {
+                font-size: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .performance-header {
+                margin-bottom: 1.5rem;
+                gap: 15px;
+            }
+
+            .performance-grade {
+                font-size: 2rem;
+                padding: 10px 20px;
+                min-width: 80px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 1.5rem;
+            }
+
+            .stat-card {
+                padding: 12px;
+            }
+
+            .stat-card h3 {
+                font-size: 1.2rem;
+            }
+
+            .progress-section h3 {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+
+            .progress-item {
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #game-over {
+                padding: 1rem 0.75rem;
+            }
+
+            #game-over h2 {
+                font-size: 1.25rem;
+                margin-bottom: 1rem;
+            }
+
+            .performance-grade {
+                font-size: 1.5rem;
+                padding: 8px 16px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 10px;
+            }
+
+            .stat-card h3 {
+                font-size: 1.1rem;
+            }
+
+            .progress-section {
+                margin-bottom: 1.5rem;
+            }
+        }
+
+        .crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        .crosshair::before {
+            width: var(--crosshair-thickness, 2px);
+            height: var(--crosshair-size, 20px);
+            left: var(--crosshair-offset, 9px);
+            top: 0;
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        .crosshair::after {
+            width: var(--crosshair-size, 20px);
+            height: var(--crosshair-thickness, 2px);
+            left: 0;
+            top: var(--crosshair-offset, 9px);
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        /* Crosshair color variations */
+        .crosshair.crosshair-red::before,
+        .crosshair.crosshair-red::after {
+            background: #ff6b6b;
+        }
+
+        .crosshair.crosshair-green::before,
+        .crosshair.crosshair-green::after {
+            background: #4ecdc4;
+        }
+
+        .crosshair.crosshair-blue::before,
+        .crosshair.crosshair-blue::after {
+            background: #45b7d1;
+        }
+
+        .crosshair.crosshair-cyan::before,
+        .crosshair.crosshair-cyan::after {
+            background: #00d4ff;
+        }
+
+        .crosshair.crosshair-magenta::before,
+        .crosshair.crosshair-magenta::after {
+            background: #ff6b9d;
+        }
+
+        .crosshair.crosshair-yellow::before,
+        .crosshair.crosshair-yellow::after {
+            background: #ffe66d;
+        }
+
+        /* Crosshair dot variations */
+        .crosshair.crosshair-red,
+        .crosshair.crosshair-green,
+        .crosshair.crosshair-blue,
+        .crosshair.crosshair-cyan,
+        .crosshair.crosshair-magenta,
+        .crosshair.crosshair-yellow {
+            background: currentColor;
+        }
+
+        .crosshair.crosshair-red { color: #ff6b6b; }
+        .crosshair.crosshair-green { color: #4ecdc4; }
+        .crosshair.crosshair-blue { color: #45b7d1; }
+        .crosshair.crosshair-cyan { color: #00d4ff; }
+        .crosshair.crosshair-magenta { color: #ff6b9d; }
+        .crosshair.crosshair-yellow { color: #ffe66d; }
+
+        .hit-feedback {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: hitFade 0.5s ease-out forwards;
+            z-index: 15;
+        }
+
+        @keyframes hitFade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.5); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .target-highlight {
+            position: absolute;
+            border: 3px solid #4ecdc4;
+            border-radius: 5px;
+            pointer-events: none;
+            animation: highlightPulse 0.3s ease-out;
+            z-index: 12;
+        }
+
+        @keyframes highlightPulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-menu" id="main-menu">
+        <!-- Header -->
+        <div class="menu-header">
+            <div class="logo">WebClicker</div>
+            <div class="subtitle">Precision Aim Training</div>
+        </div>
+
+        <!-- Menu Cards Grid -->
+        <div class="menu-cards">
+            <!-- Start Game Card -->
+            <div class="menu-card start-card">
+                <button class="btn btn-primary" id="start-game-btn" style="width: 100%; max-width: 300px;">&gt;&gt; PLAY</button>
+            </div>
+
+            <!-- History Card -->
+            <div class="menu-card" id="history-card">
+                <div class="card-header">
+                    <div class="card-title">Game History</div>
+                    <div class="card-subtitle">Your recent performance stats</div>
+                </div>
+
+                <div id="history-content">
+                    <div id="no-history-message" style="text-align: center; color: #888; padding: 20px;">
+                        No games played yet. Start your first session!
+                    </div>
+
+                    <div id="history-stats" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div class="stat-card" style="padding: 12px;">
+                                <h3 id="best-score">0</h3>
+                                <p>Best Score</p>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <h3 id="total-games">0</h3>
+                                <p>Total Games</p>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <h3 id="avg-accuracy">0%</h3>
+                                <p>Avg Accuracy</p>
+                            </div>
+                            <div class="stat-card" style="padding: 12px;">
+                                <h3 id="avg-reaction">0ms</h3>
+                                <p>Avg Reaction</p>
+                            </div>
+                        </div>
+
+                        <div id="performance-chart" style="height: 200px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                            <canvas id="chart-canvas" width="300" height="170" style="width: 100%; height: 100%; display: block;"></canvas>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn btn-secondary" id="clear-history-btn" style="font-size: 0.8rem; padding: 8px 16px;">Clear History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensitivity Settings Card -->
+            <div class="menu-card">
+                <div class="card-header">
+                    <div class="card-title">Sensitivity Settings</div>
+                    <div class="card-subtitle">Configure your game sensitivity</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Game</label>
+                    <select id="game-select">
+                        <option value="overwatch">Overwatch 2</option>
+                        <option value="valorant">Valorant</option>
+                        <option value="csgo">CS:GO</option>
+                        <option value="apex">Apex Legends</option>
+                        <option value="fortnite">Fortnite</option>
+                        <option value="cod">Call of Duty</option>
+                        <option value="rainbow">Rainbow Six Siege</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Sensitivity</label>
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                        <input type="number" id="sens-input" placeholder="15.6" step="0.1" style="flex: 1;">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="separate-axes">
+                            <label style="margin: 0; cursor: pointer;">H/V</label>
+                        </div>
+                    </div>
+                    <div id="separate-axes-container" style="display: none; margin-top: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Horizontal</label>
+                                <input type="number" id="sens-h-input" placeholder="15.6" step="0.1">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Vertical</label>
+                                <input type="number" id="sens-v-input" placeholder="15.6" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>FOV</label>
+                    <input type="number" id="fov-input" placeholder="90">
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="test-sens-btn">Test</button>
+                    <button class="btn btn-secondary" id="save-sens-btn">Save</button>
+                </div>
+
+                <div class="preset-buttons">
+                    <span style="color: #888; font-size: 0.9rem; width: 100%; margin-bottom: 0.5rem;">Quick Presets:</span>
+                    <button class="preset-btn" id="preset-ow">OW2</button>
+                    <button class="preset-btn" id="preset-valorant">Valorant</button>
+                    <button class="preset-btn" id="preset-fortnite">Fortnite</button>
+                    <button class="preset-btn" id="preset-csgo">CS:GO</button>
+                </div>
+            </div>
+
+            <!-- Game Settings Card -->
+            <div class="menu-card">
+                <div class="card-header">
+                    <div class="card-title">Game Settings</div>
+                    <div class="card-subtitle">Customize your training experience</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <select id="difficulty-select">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="expert">Expert</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Game Mode</label>
+                    <select id="game-mode-select">
+                        <option value="jumbo-tile-frenzy" selected>Jumbo Tile Frenzy</option>
+                        <option value="speed-test">Speed Test</option>
+                        <option value="precision">Precision</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Lifetime: <span id="target-lifetime-value">2.0s</span></label>
+                    <input type="range" id="target-lifetime" min="1.0" max="5.0" step="0.1" value="2.0">
+                </div>
+
+                <div class="form-group">
+                    <label>Spawn Delay: <span id="spawn-delay-value">1.0s</span></label>
+                    <input type="range" id="spawn-delay" min="0.5" max="3.0" step="0.1" value="1.0">
+                </div>
+
+                <div class="form-group">
+                    <label>FOV: <span id="fov-value">90°</span></label>
+                    <input type="range" id="fov-slider" min="60" max="120" step="5" value="90">
+                </div>
+            </div>
+
+            <!-- Crosshair Settings Card -->
+            <div class="menu-card">
+                <div class="card-header">
+                    <div class="card-title">Crosshair Settings</div>
+                    <div class="card-subtitle">Customize your aiming reticle</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Crosshair Style</label>
+                    <select id="crosshair-style">
+                        <option value="default" selected>Default (White)</option>
+                        <option value="red">Red</option>
+                        <option value="green">Green</option>
+                        <option value="blue">Blue</option>
+                        <option value="cyan">Cyan</option>
+                        <option value="magenta">Magenta</option>
+                        <option value="yellow">Yellow</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Crosshair Size: <span id="crosshair-size-value">20px</span></label>
+                    <input type="range" id="crosshair-size" min="12" max="40" step="2" value="20">
+                </div>
+
+                <div class="form-group">
+                    <label>Crosshair Thickness: <span id="crosshair-thickness-value">2px</span></label>
+                    <input type="range" id="crosshair-thickness" min="1" max="6" step="1" value="2">
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="crosshair-dot">
+                        <label style="margin: 0; cursor: pointer;">Center Dot</label>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="reset-crosshair-btn">Reset</button>
+                    <button class="btn btn-secondary" id="preview-crosshair-btn">Preview</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-overlay">
+
+
+            <div id="game-ui">
+                <div id="score-display">Score: 0</div>
+                <div id="timer">Time: 0.00s</div>
+                <div id="accuracy">Accuracy: 100%</div>
+            </div>
+
+
+            <div id="sensitivity-converter">
+                <h3>Sensitivity Converter</h3>
+                <div class="sensitivity-input">
+                    <label>Overwatch:</label>
+                    <input type="number" id="ow-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>Fortnite:</label>
+                    <input type="number" id="fortnite-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>Call of Duty:</label>
+                    <input type="number" id="cod-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>Battlefield:</label>
+                    <input type="number" id="bf-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>Valorant:</label>
+                    <input type="number" id="valorant-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>CS:GO:</label>
+                    <input type="number" id="csgo-sens" placeholder="0.00" step="0.01">
+                </div>
+                <div class="sensitivity-input">
+                    <label>Apex Legends:</label>
+                    <input type="number" id="apex-sens" placeholder="0.00" step="0.01">
+                </div>
+                <button class="btn" id="convert-btn" style="width: 100%; margin-top: 10px;">Convert</button>
+            </div>
+
+            <div id="game-over">
+                <h2>Training Complete!</h2>
+
+                <!-- Performance Grade Section -->
+                <div class="performance-header">
+                    <div>
+                        <div class="performance-title">Performance Grade</div>
+                        <div id="performance-grade" class="performance-grade grade-f">F</div>
+                    </div>
+                </div>
+
+                <!-- Best Score Section -->
+                <div id="best-score-section" style="text-align: center; margin-bottom: 2rem; display: none;">
+                    <div id="new-highscore-banner" style="display: none; background: linear-gradient(45deg, #ffd700, #ffb347); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; animation: pulse 1s ease-in-out infinite;">
+                        🏆 NEW HIGHSCORE! 🏆
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">
+                        <div style="text-align: center;">
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600;">Your Score</div>
+                            <div style="font-size: 2rem; font-weight: bold; color: #fff;" id="current-score-display">0</div>
+                        </div>
+                        <div style="color: #888; font-size: 1.5rem;">vs</div>
+                        <div style="text-align: center;">
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600;">Best Score</div>
+                            <div style="font-size: 2rem; font-weight: bold; color: #ffd700;" id="best-score-display">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="final-score">0</h3>
+                        <p>Final Score</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="final-time">0.00s</h3>
+                        <p>Time</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="final-accuracy">100%</h3>
+                        <p>Accuracy</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="avg-reaction-time">N/A</h3>
+                        <p>Avg Reaction Time</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="final-hits">0</h3>
+                        <p>Hits</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="final-misses">0</h3>
+                        <p>Misses</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="total-clicks">0</h3>
+                        <p>Total Clicks</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="consistency-score">N/A</h3>
+                        <p>Consistency</p>
+                    </div>
+                </div>
+
+                <!-- Progress Bars Section -->
+                <div class="progress-section">
+                    <h3 style="color: #fff; margin-bottom: 20px; font-size: 1.3rem;">Performance Metrics</h3>
+
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Accuracy</span>
+                            <span id="accuracy-value">100%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="accuracy-progress" class="progress-fill accuracy-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Speed Rating</span>
+                            <span id="efficiency-value">100%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="efficiency-progress" class="progress-fill efficiency-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Consistency Rating</span>
+                            <span id="hit-rate-value">100%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="hit-rate-progress" class="progress-fill hit-rate-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="progress-item">
+                        <div class="progress-label">
+                            <span>Overall Performance</span>
+                            <span id="reaction-time-value">N/A</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="reaction-time-progress" class="progress-fill reaction-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legacy stats (hidden) -->
+                <div id="final-stats" style="display: none;">
+                    <div>Final Score: <span id="final-score-legacy">0</span></div>
+                    <div>Time: <span id="final-time-legacy">0.00s</span></div>
+                    <div>Accuracy: <span id="final-accuracy-legacy">100%</span></div>
+                    <div>Hits: <span id="final-hits-legacy">0</span></div>
+                    <div>Misses: <span id="final-misses-legacy">0</span></div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 2rem;">
+                    <button class="btn" id="restart-btn" style="flex: 1; max-width: 200px;">Play Again</button>
+                    <button class="btn secondary" id="menu-btn" style="flex: 1; max-width: 200px;">Back to Menu</button>
+                </div>
+            </div>
+
+            <div class="crosshair"></div>
+        </div>
+
+        <!-- Pause Menu -->
+        <div id="pause-menu" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem; min-width: 350px; text-align: center;">
+            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Paused</div>
+            <div style="margin-bottom: 2rem; color: #888; font-size: 1rem;">
+                Press ESC to resume
+            </div>
+
+            <button class="menu-button" id="restart-pause-btn" style="margin-bottom: 1rem;">Restart</button>
+            <button class="menu-button primary" id="menu-pause-btn">Main Menu</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
