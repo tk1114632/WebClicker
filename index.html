@@ -504,46 +504,6 @@
             color: #ff6b6b;
         }
 
-        #sensitivity-converter {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            pointer-events: auto;
-            min-width: 300px;
-        }
-
-        #sensitivity-converter h3 {
-            margin-bottom: 15px;
-            color: #4ecdc4;
-        }
-
-        .sensitivity-input {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .sensitivity-input label {
-            width: 120px;
-            font-size: 0.9rem;
-        }
-
-        .sensitivity-input input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.05);
-            color: white;
-            font-size: 0.9rem;
-        }
-
-        .sensitivity-input input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
 
         .settings-menu {
             text-align: center;
@@ -1144,38 +1104,6 @@
             </div>
 
 
-            <div id="sensitivity-converter">
-                <h3>Sensitivity Converter</h3>
-                <div class="sensitivity-input">
-                    <label>Overwatch:</label>
-                    <input type="number" id="ow-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>Fortnite:</label>
-                    <input type="number" id="fortnite-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>Call of Duty:</label>
-                    <input type="number" id="cod-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>Battlefield:</label>
-                    <input type="number" id="bf-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>Valorant:</label>
-                    <input type="number" id="valorant-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>CS:GO:</label>
-                    <input type="number" id="csgo-sens" placeholder="0.00" step="0.01">
-                </div>
-                <div class="sensitivity-input">
-                    <label>Apex Legends:</label>
-                    <input type="number" id="apex-sens" placeholder="0.00" step="0.01">
-                </div>
-                <button class="btn" id="convert-btn" style="width: 100%; margin-top: 10px;">Convert</button>
-            </div>
 
             <div id="game-over">
                 <h2>Training Complete!</h2>
@@ -1242,6 +1170,58 @@
                     </div>
                 </div>
 
+                <!-- Enhanced Performance Metrics -->
+                <div class="enhanced-metrics" style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <h3 style="color: #4ecdc4; margin-bottom: 1rem; font-size: 1.2rem; text-align: center;">Advanced Performance Analysis</h3>
+                    
+                    <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Performance Tier</div>
+                            <div id="performance-tier" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Percentile Ranking</div>
+                            <div id="percentile-ranking" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #ff6b6b; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Reaction Time Score</div>
+                            <div id="reaction-time-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Accuracy Score</div>
+                            <div id="accuracy-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Overall Score</div>
+                            <div id="overall-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Game Mode</div>
+                            <div id="game-mode-display" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Best Streak</div>
+                            <div id="best-streak" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Streak Bonus</div>
+                            <div id="streak-bonus" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                        
+                        <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
+                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Warm-up Avg</div>
+                            <div id="warmup-average" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Progress Bars Section -->
                 <div class="progress-section">
                     <h3 style="color: #fff; margin-bottom: 20px; font-size: 1.3rem;">Performance Metrics</h3>
@@ -1258,7 +1238,7 @@
 
                     <div class="progress-item">
                         <div class="progress-label">
-                            <span>Speed Rating</span>
+                            <span>Reaction Time Rating</span>
                             <span id="efficiency-value">100%</span>
                         </div>
                         <div class="progress-bar">
