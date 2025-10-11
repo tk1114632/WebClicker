@@ -15,9 +15,13 @@ class AimlabsGame {
         this.currentTarget = null;
 
         // Advanced performance tracking
-        this.hitTimes = []; // Array of reaction times for each hit
+        this.hitTimes = []; // Array of reaction times for each hit (after warm-up)
+        this.warmUpTimes = []; // First 5 targets (tracked but not graded)
         this.hitTimestamps = []; // When each hit occurred
         this.targetSpawnTimes = []; // When each target spawned
+        this.currentStreak = 0; // Track ongoing streak
+        this.maxStreak = 0; // Best streak this session
+        this.streakThreshold = 600; // ms for "good" hit
         this.performanceData = {
             totalClicks: 0,
             averageReactionTime: 0,
@@ -696,8 +700,11 @@ class AimlabsGame {
 
         // Reset performance tracking
         this.hitTimes = [];
+        this.warmUpTimes = [];
         this.hitTimestamps = [];
         this.targetSpawnTimes = [];
+        this.currentStreak = 0;
+        this.maxStreak = 0;
         this.performanceData = {
             totalClicks: 0,
             averageReactionTime: 0,
@@ -728,7 +735,6 @@ class AimlabsGame {
         document.body.requestPointerLock();
 
         // Hide sensitivity converter during gameplay
-        document.getElementById('sensitivity-converter').style.display = 'none';
 
         this.updateUI();
     }
@@ -747,8 +753,11 @@ class AimlabsGame {
 
         // Initialize performance tracking
         this.hitTimes = [];
+        this.warmUpTimes = [];
         this.hitTimestamps = [];
         this.targetSpawnTimes = [];
+        this.currentStreak = 0;
+        this.maxStreak = 0;
         this.performanceData = {
             totalClicks: 0,
             averageReactionTime: 0,
@@ -772,7 +781,6 @@ class AimlabsGame {
         document.body.requestPointerLock();
 
         // Hide sensitivity converter during gameplay
-        document.getElementById('sensitivity-converter').style.display = 'none';
 
         this.updateUI();
     }
@@ -815,8 +823,11 @@ class AimlabsGame {
 
             // Reset performance tracking to initial state
             this.hitTimes = [];
+            this.warmUpTimes = [];
             this.hitTimestamps = [];
             this.targetSpawnTimes = [];
+            this.currentStreak = 0;
+            this.maxStreak = 0;
             this.performanceData = {
                 totalClicks: 0,
                 averageReactionTime: 0,
@@ -903,8 +914,11 @@ class AimlabsGame {
 
             // Reset performance tracking
             this.hitTimes = [];
+            this.warmUpTimes = [];
             this.hitTimestamps = [];
             this.targetSpawnTimes = [];
+            this.currentStreak = 0;
+            this.maxStreak = 0;
             this.performanceData = {
                 totalClicks: 0,
                 averageReactionTime: 0,
@@ -991,8 +1005,11 @@ class AimlabsGame {
 
             // Reset performance tracking
             this.hitTimes = [];
+            this.warmUpTimes = [];
             this.hitTimestamps = [];
             this.targetSpawnTimes = [];
+            this.currentStreak = 0;
+            this.maxStreak = 0;
             this.performanceData = {
                 totalClicks: 0,
                 averageReactionTime: 0,
@@ -1136,6 +1153,31 @@ class AimlabsGame {
         if (totalClicks) totalClicks.textContent = performance.totalClicks;
         if (clickEfficiency) clickEfficiency.textContent = performance.efficiency.toFixed(1) + '%';
         if (targetsHitRate) targetsHitRate.textContent = performance.hitRate.toFixed(1) + '%';
+
+        // Update new performance metrics
+        const performanceTier = document.getElementById('performance-tier');
+        const percentileRanking = document.getElementById('percentile-ranking');
+        const reactionTimeScore = document.getElementById('reaction-time-score');
+        const accuracyScore = document.getElementById('accuracy-score');
+        const overallScore = document.getElementById('overall-score');
+        const gameModeDisplay = document.getElementById('game-mode-display');
+
+        if (performanceTier) performanceTier.textContent = performance.performanceTier || 'N/A';
+        if (percentileRanking) percentileRanking.textContent = (performance.percentile || 0) + 'th percentile';
+        if (reactionTimeScore) reactionTimeScore.textContent = (performance.reactionTimeScore || 0).toFixed(0) + '/100';
+        if (accuracyScore) accuracyScore.textContent = (performance.accuracyScore || 0).toFixed(0) + '/100';
+        if (overallScore) overallScore.textContent = (performance.overallScore || 0).toFixed(0) + '/100';
+        if (gameModeDisplay) gameModeDisplay.textContent = performance.gameMode || 'jumbo-tile-frenzy';
+        
+        // Update new metrics
+        const bestStreak = document.getElementById('best-streak');
+        const streakBonus = document.getElementById('streak-bonus');
+        const warmupAverage = document.getElementById('warmup-average');
+        
+        if (bestStreak) bestStreak.textContent = performance.maxStreak || 0;
+        if (streakBonus) streakBonus.textContent = (performance.streakBonus || 0) + '%';
+        if (warmupAverage) warmupAverage.textContent = performance.warmUpAverage > 0 ? 
+            Math.round(performance.warmUpAverage) + 'ms' : 'N/A';
 
         // Update progress bars
         this.updateProgressBars(performance);
@@ -1354,8 +1396,24 @@ class AimlabsGame {
         // Track performance data
         const currentTime = Date.now();
         const reactionTime = currentTime - target.spawnTime; // Time from spawn to hit
-        this.hitTimes.push(reactionTime);
-        this.hitTimestamps.push(currentTime);
+        
+        // Warm-up handling: first 5 targets tracked separately, not graded
+        if (this.hits <= 5) {
+            this.warmUpTimes.push(reactionTime); // Track separately
+            // Don't add to this.hitTimes (graded times)
+        } else {
+            this.hitTimes.push(reactionTime); // Only grade after warm-up
+            this.hitTimestamps.push(currentTime);
+        }
+        
+        // Streak tracking: consecutive "good" hits
+        const isGoodHit = reactionTime < this.streakThreshold && this.getAccuracy() >= 80;
+        if (isGoodHit) {
+            this.currentStreak++;
+            this.maxStreak = Math.max(this.maxStreak, this.currentStreak);
+        } else {
+            this.currentStreak = 0;
+        }
 
         // Play hit sound
         this.playHitSound();
@@ -1520,6 +1578,11 @@ class AimlabsGame {
             this.elapsedTime = (Date.now() - this.startTime) / 1000;
             document.getElementById('timer').textContent = `Time: ${this.elapsedTime.toFixed(2)}s`;
 
+            // Show warm-up progress for first 5 hits
+            if (this.hits <= 5) {
+                document.getElementById('timer').textContent += ` | Warm-up: ${this.hits}/5`;
+            }
+
             // End game after 30 seconds
             if (this.elapsedTime >= 30) {
                 this.endGame();
@@ -1534,14 +1597,166 @@ class AimlabsGame {
         return totalAttempts > 0 ? Math.round((this.hits / totalAttempts) * 100) : 100;
     }
 
+    getGameModeConfig() {
+        const configs = {
+            'jumbo-tile-frenzy': {
+                reactionWeight: 0.5,
+                accuracyWeight: 0.5,
+                consistencyWeight: 0.05,
+                reactionTimeMultiplier: 1.0,
+                accuracyAdjustment: 0
+            },
+            'speed-test': {
+                reactionWeight: 0.55,
+                accuracyWeight: 0.45,
+                consistencyWeight: 0.07,
+                reactionTimeMultiplier: 0.8, // 20% stricter (faster required)
+                accuracyAdjustment: 0
+            },
+            'precision': {
+                reactionWeight: 0.4,
+                accuracyWeight: 0.6,
+                consistencyWeight: 0.03,
+                reactionTimeMultiplier: 1.15, // 15% more lenient (slower acceptable)
+                accuracyAdjustment: 10 // 10% stricter accuracy requirements
+            }
+        };
+        
+        return configs[this.gameMode] || configs['jumbo-tile-frenzy'];
+    }
+
+    calculateReactionTimeScore(avgReactionTime) {
+        if (avgReactionTime <= 0) return 0;
+        
+        const config = this.getGameModeConfig();
+        
+        // Adjusted benchmarks for continuous target spawning scenario
+        // Players need time to: see target → aim → click (not just pure reaction time)
+        const baseBenchmarks = {
+            professional: 300,  // 300ms for professional (was 150ms)
+            excellent: 400,     // 400ms for excellent (was 200ms)
+            veryGood: 500,      // 500ms for very good (was 250ms)
+            good: 600,          // 600ms for good (was 300ms)
+            average: 800        // 800ms for average (was 400ms)
+        };
+        
+        // Apply game mode multiplier to adjusted benchmarks
+        const benchmarks = {
+            professional: baseBenchmarks.professional * config.reactionTimeMultiplier,
+            excellent: baseBenchmarks.excellent * config.reactionTimeMultiplier,
+            veryGood: baseBenchmarks.veryGood * config.reactionTimeMultiplier,
+            good: baseBenchmarks.good * config.reactionTimeMultiplier,
+            average: baseBenchmarks.average * config.reactionTimeMultiplier
+        };
+        
+        // Calculate score based on adjusted benchmarks
+        if (avgReactionTime <= benchmarks.professional) {
+            return 100;
+        } else if (avgReactionTime <= benchmarks.excellent) {
+            return 90;
+        } else if (avgReactionTime <= benchmarks.veryGood) {
+            return 80;
+        } else if (avgReactionTime <= benchmarks.good) {
+            return 70;
+        } else if (avgReactionTime <= benchmarks.average) {
+            return 50;
+        } else {
+            // Scale down for worse performance
+            const excess = avgReactionTime - benchmarks.average;
+            const maxExcess = benchmarks.average; // Double the average time
+            const penalty = Math.min(excess / maxExcess, 1) * 30; // Max 30 point penalty
+            return Math.max(20, 50 - penalty);
+        }
+    }
+
+    calculateAccuracyScore(accuracy) {
+        const config = this.getGameModeConfig();
+        const adjustedAccuracy = accuracy - config.accuracyAdjustment;
+        
+        if (adjustedAccuracy >= 95) return 100;
+        else if (adjustedAccuracy >= 85) return 90;
+        else if (adjustedAccuracy >= 75) return 80;
+        else if (adjustedAccuracy >= 65) return 70;
+        else if (adjustedAccuracy >= 55) return 50;
+        else return Math.max(20, adjustedAccuracy * 0.4); // Scale down for very low accuracy
+    }
+
+    calculateConsistencyModifier(consistency, consistencyWeight) {
+        if (consistency <= 0) return 0;
+        
+        // Lower consistency (std dev) = better performance
+        const maxConsistency = 300; // High variance threshold
+        const consistencyScore = Math.max(0, 100 - (consistency / maxConsistency) * 100);
+        
+        // Convert to modifier (-consistencyWeight to +consistencyWeight)
+        return (consistencyScore - 50) * consistencyWeight * 2;
+    }
+
+    calculateGrade(overallScore, reactionTimeScore, accuracyScore) {
+        // Enhanced grade calculation with S+ tier
+        if (overallScore >= 95 && reactionTimeScore >= 90 && accuracyScore >= 90) return 'S+';
+        else if (overallScore >= 90) return 'S';
+        else if (overallScore >= 85) return 'A+';
+        else if (overallScore >= 80) return 'A';
+        else if (overallScore >= 75) return 'B+';
+        else if (overallScore >= 70) return 'B';
+        else if (overallScore >= 65) return 'C+';
+        else if (overallScore >= 60) return 'C';
+        else if (overallScore >= 50) return 'D';
+        else return 'F';
+    }
+
+    calculatePerformanceTier(avgReactionTime, accuracy) {
+        // Updated tiers based on realistic continuous target spawning benchmarks
+        if (avgReactionTime < 350 && accuracy >= 90) return 'Professional';
+        else if (avgReactionTime < 500 && accuracy >= 80) return 'Advanced';
+        else if (avgReactionTime < 700 && accuracy >= 70) return 'Intermediate';
+        else return 'Beginner';
+    }
+
+    calculatePercentileRanking(avgReactionTime, accuracy) {
+        // Based on realistic continuous target spawning scenario
+        let reactionPercentile = 0;
+        let accuracyPercentile = 0;
+        
+        // Reaction time percentiles (adjusted for continuous spawning)
+        if (avgReactionTime <= 300) reactionPercentile = 99;  // Professional level
+        else if (avgReactionTime <= 400) reactionPercentile = 90;  // Excellent
+        else if (avgReactionTime <= 500) reactionPercentile = 75;  // Very good
+        else if (avgReactionTime <= 600) reactionPercentile = 50;  // Average
+        else if (avgReactionTime <= 800) reactionPercentile = 25;  // Below average
+        else reactionPercentile = 10;  // Poor
+        
+        // Accuracy percentiles (unchanged)
+        if (accuracy >= 95) accuracyPercentile = 95;
+        else if (accuracy >= 85) accuracyPercentile = 80;
+        else if (accuracy >= 75) accuracyPercentile = 60;
+        else if (accuracy >= 65) accuracyPercentile = 40;
+        else if (accuracy >= 55) accuracyPercentile = 25;
+        else accuracyPercentile = 10;
+        
+        // Return average percentile
+        return Math.round((reactionPercentile + accuracyPercentile) / 2);
+    }
+
     calculatePerformanceMetrics() {
         const accuracy = this.getAccuracy();
         const totalAttempts = this.hits + this.misses;
 
-        // Calculate average reaction time
+        // Calculate robust average reaction time using trimmed mean
         let avgReactionTime = 0;
         if (this.hitTimes.length > 0) {
-            avgReactionTime = this.hitTimes.reduce((sum, time) => sum + time, 0) / this.hitTimes.length;
+            const sorted = [...this.hitTimes].sort((a, b) => a - b);
+            
+            if (sorted.length > 10) {
+                // Use trimmed mean for larger samples (remove top/bottom 10%)
+                const trimCount = Math.floor(sorted.length * 0.1);
+                const trimmed = sorted.slice(trimCount, -trimCount || undefined);
+                avgReactionTime = trimmed.reduce((sum, time) => sum + time, 0) / trimmed.length;
+            } else {
+                // Use median for small samples
+                avgReactionTime = sorted[Math.floor(sorted.length / 2)];
+            }
         }
 
         // Calculate consistency (lower is better - standard deviation of reaction times)
@@ -1552,13 +1767,38 @@ class AimlabsGame {
             consistency = Math.sqrt(variance);
         }
 
-        // Calculate performance grade based on accuracy and reaction time
-        let grade = 'F';
-        if (accuracy >= 95 && avgReactionTime < 300) grade = 'S';
-        else if (accuracy >= 90 && avgReactionTime < 400) grade = 'A';
-        else if (accuracy >= 80 && avgReactionTime < 500) grade = 'B';
-        else if (accuracy >= 70 && avgReactionTime < 600) grade = 'C';
-        else if (accuracy >= 60) grade = 'D';
+        // Get game mode specific scoring weights and benchmarks
+        const gameModeConfig = this.getGameModeConfig();
+        
+        // Calculate reaction time score using game-mode-aware benchmarks
+        const reactionTimeScore = this.calculateReactionTimeScore(avgReactionTime);
+        
+        // Calculate accuracy score with game mode adjustments
+        const accuracyScore = this.calculateAccuracyScore(accuracy);
+        
+        // Calculate consistency modifier
+        const consistencyModifier = this.calculateConsistencyModifier(consistency, gameModeConfig.consistencyWeight);
+        
+        // Calculate weighted overall score
+        const baseOverallScore = (reactionTimeScore * gameModeConfig.reactionWeight + 
+                                 accuracyScore * gameModeConfig.accuracyWeight) + consistencyModifier;
+        
+        // Apply streak bonus
+        let streakBonus = 0;
+        if (this.maxStreak >= 15) streakBonus = 8;
+        else if (this.maxStreak >= 10) streakBonus = 5;
+        else if (this.maxStreak >= 5) streakBonus = 2;
+        
+        const overallScore = Math.min(100, baseOverallScore + streakBonus);
+        
+        // Calculate performance grade based on weighted score
+        const grade = this.calculateGrade(overallScore, reactionTimeScore, accuracyScore);
+        
+        // Calculate performance tier
+        const performanceTier = this.calculatePerformanceTier(avgReactionTime, accuracy);
+        
+        // Calculate percentile ranking
+        const percentile = this.calculatePercentileRanking(avgReactionTime, accuracy);
 
         // Calculate click efficiency (hits per click)
         const efficiency = totalAttempts > 0 ? (this.hits / this.performanceData.totalClicks * 100) : 0;
@@ -1571,7 +1811,19 @@ class AimlabsGame {
             efficiency: efficiency,
             grade: grade,
             totalTargets: this.targetSpawnTimes.length,
-            hitRate: this.hitTimes.length / Math.max(1, this.targetSpawnTimes.length) * 100
+            hitRate: this.hitTimes.length / Math.max(1, this.targetSpawnTimes.length) * 100,
+            reactionTimeScore: reactionTimeScore,
+            accuracyScore: accuracyScore,
+            overallScore: overallScore,
+            performanceTier: performanceTier,
+            percentile: percentile,
+            gameMode: this.gameMode,
+            // New metrics
+            maxStreak: this.maxStreak,
+            streakBonus: streakBonus,
+            warmUpTimes: this.warmUpTimes,
+            warmUpAverage: this.warmUpTimes.length > 0 ? 
+                this.warmUpTimes.reduce((a, b) => a + b, 0) / this.warmUpTimes.length : 0
         };
 
         return this.performanceData;
@@ -1585,20 +1837,12 @@ class AimlabsGame {
         accuracyBar.style.width = accuracyPercent + '%';
         accuracyValue.textContent = performance.accuracy + '%';
 
-        // Progress Bar 2: Speed Rating - based on reaction time (faster = better)
+        // Progress Bar 2: Reaction Time Rating - using new benchmark scoring
         const efficiencyBar = document.getElementById('efficiency-progress');
         const efficiencyValue = document.getElementById('efficiency-value');
-        // Convert reaction time to a 0-100 score (lower reaction time = higher score)
-        const maxReactionTime = 1000; // 1 second = 0% performance
-        const minReactionTime = 200;  // 0.2 seconds = 100% performance
-        let speedScore = 0;
-        if (performance.averageReactionTime > 0) {
-            speedScore = Math.max(0, Math.min(100,
-                100 - ((performance.averageReactionTime - minReactionTime) / (maxReactionTime - minReactionTime)) * 100
-            ));
-        }
-        efficiencyBar.style.width = speedScore + '%';
-        efficiencyValue.textContent = speedScore.toFixed(0) + '%';
+        const reactionTimeScore = performance.reactionTimeScore || 0;
+        efficiencyBar.style.width = reactionTimeScore + '%';
+        efficiencyValue.textContent = reactionTimeScore.toFixed(0) + '%';
 
         // Progress Bar 3: Consistency Rating - based on reaction time variance (lower variance = better)
         const hitRateBar = document.getElementById('hit-rate-progress');
@@ -1614,10 +1858,10 @@ class AimlabsGame {
         hitRateBar.style.width = consistencyScore + '%';
         hitRateValue.textContent = consistencyScore.toFixed(0) + '%';
 
-        // Progress Bar 4: Overall Performance - combination of accuracy, speed, and consistency
+        // Progress Bar 4: Overall Performance - weighted average with consistency modifier
         const reactionTimeBar = document.getElementById('reaction-time-progress');
         const reactionTimeValue = document.getElementById('reaction-time-value');
-        const overallScore = (performance.accuracy + speedScore + consistencyScore) / 3;
+        const overallScore = performance.overallScore || 0;
         reactionTimeBar.style.width = overallScore + '%';
         reactionTimeValue.textContent = overallScore.toFixed(0) + '%';
     }
@@ -1771,8 +2015,6 @@ class AimlabsGame {
         document.getElementById('pause-menu').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
 
-        // Show sensitivity converter during gameplay
-        document.getElementById('sensitivity-converter').style.display = 'block';
     }
 
     pauseGame() {
@@ -2066,7 +2308,16 @@ class AimlabsGame {
                 grade: this.performanceData.grade,
                 difficulty: this.difficulty,
                 gameMode: this.gameMode,
-                fov: this.fov
+                fov: this.fov,
+                // New performance metrics
+                reactionTimeScore: this.performanceData.reactionTimeScore,
+                accuracyScore: this.performanceData.accuracyScore,
+                overallScore: this.performanceData.overallScore,
+                performanceTier: this.performanceData.performanceTier,
+                percentile: this.performanceData.percentile,
+                maxStreak: this.performanceData.maxStreak,
+                streakBonus: this.performanceData.streakBonus,
+                warmUpAverage: this.performanceData.warmUpAverage
             };
 
             console.log('Saving session data:', sessionData);
