@@ -11,6 +11,7 @@ class AimlabsGame {
         this.elapsedTime = 0;
         this.hits = 0;
         this.misses = 0;
+        this.consecutiveHits = 0;
         this.currentTarget = null;
 
         // Advanced performance tracking
@@ -33,7 +34,7 @@ class AimlabsGame {
         this.mouse = new THREE.Vector2();
         this.raycaster = new THREE.Raycaster();
         this.raycaster.near = 0.1;
-        this.raycaster.far = 100; // Increased range to ensure we never miss targets
+        this.raycaster.far = 500; // Increased range to ensure we never miss targets
         this.centerVector = new THREE.Vector2(0, 0); // Pre-create center vector for instant raycasting
         this.mouseSensitivity = 0.002;
         this.mouseSensitivityV = null; // For separate vertical sensitivity
@@ -92,21 +93,36 @@ class AimlabsGame {
             90, // Default FOV
             window.innerWidth / window.innerHeight,
             0.1,
-            1000
+            2000 // Increased far clipping plane
         );
         this.camera.position.set(0, 0, 5);
         this.camera.rotation.order = 'YXZ'; // FPS camera rotation order
         this.fov = 90;
+        this.camera.updateProjectionMatrix(); // Ensure projection matrix is updated
 
         // Renderer setup - balanced quality/performance
         this.renderer = new THREE.WebGLRenderer({
             canvas: document.getElementById('game-canvas'),
             antialias: true, // Enable antialiasing for smoother edges
-            powerPreference: 'high-performance'
+            powerPreference: 'high-performance',
+            depth: true,
+            stencil: false
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Use device pixel ratio up to 1.0 for quality
         this.renderer.shadowMap.enabled = false; // Keep shadows disabled for performance
+        this.renderer.sortObjects = true; // Ensure proper object sorting
+
+        // Ensure viewport covers full canvas
+        this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+        this.renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+        this.renderer.setScissorTest(false);
+
+        // Ensure canvas fills the container
+        const canvas = this.renderer.domElement;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.display = 'block';
 
         // Lighting setup
         this.setupLighting();
@@ -472,13 +488,16 @@ class AimlabsGame {
         // Limit vertical rotation
         this.cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotation.x));
 
+        // Limit horizontal rotation to prevent floating point issues
+        this.cameraRotation.y = this.cameraRotation.y % (Math.PI * 2);
+
             // Ensure camera rotation values are valid
             if (isFinite(this.cameraRotation.y) && isFinite(this.cameraRotation.x)) {
-        // Apply rotation to camera using Euler angles for proper FPS controls
-        this.camera.rotation.order = 'YXZ'; // This is important for FPS controls
-        this.camera.rotation.y = this.cameraRotation.y;
-        this.camera.rotation.x = this.cameraRotation.x;
-        this.camera.rotation.z = 0; // No roll in FPS games
+                // Reset camera rotation and apply fresh rotation for stable FPS controls
+                this.camera.rotation.set(0, 0, 0);
+                this.camera.rotateY(this.cameraRotation.y);
+                this.camera.rotateX(this.cameraRotation.x);
+                this.camera.updateMatrixWorld(); // Ensure camera matrices are updated
             } else {
                 // Reset camera rotation if it became invalid
                 this.cameraRotation = { x: 0, y: 0 };
@@ -606,6 +625,17 @@ class AimlabsGame {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // Ensure viewport covers full resized canvas
+        this.renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+        this.renderer.setScissor(0, 0, window.innerWidth, window.innerHeight);
+        this.renderer.setScissorTest(false);
+
+        // Ensure canvas fills the resized container
+        const canvas = this.renderer.domElement;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.display = 'block';
     }
 
     onPointerLockChange() {
@@ -657,6 +687,7 @@ class AimlabsGame {
         this.score = 0;
         this.hits = 0;
         this.misses = 0;
+        this.consecutiveHits = 0;
         this.elapsedTime = 0;
         this.startTime = Date.now();
 
@@ -707,6 +738,7 @@ class AimlabsGame {
         this.score = 0;
         this.hits = 0;
         this.misses = 0;
+        this.consecutiveHits = 0;
         this.elapsedTime = 0;
         this.startTime = Date.now();
         this.targets = [];
@@ -776,6 +808,7 @@ class AimlabsGame {
             this.score = 0;
             this.hits = 0;
             this.misses = 0;
+            this.consecutiveHits = 0;
             this.elapsedTime = 0;
             this.startTime = Date.now();
             this.particles = [];
@@ -863,6 +896,7 @@ class AimlabsGame {
             this.score = 0;
             this.hits = 0;
             this.misses = 0;
+            this.consecutiveHits = 0;
             this.elapsedTime = 0;
             this.startTime = Date.now();
             this.particles = [];
@@ -945,6 +979,7 @@ class AimlabsGame {
             this.score = 0;
             this.hits = 0;
             this.misses = 0;
+            this.consecutiveHits = 0;
             this.elapsedTime = 0;
             this.startTime = 0;
 
@@ -1122,15 +1157,40 @@ class AimlabsGame {
         this.targets = [];
     }
 
+    getTargetShapeAndSize() {
+        // Dynamic shape progression based on score - circles to boxes
+        if (this.score < 15) {
+            // Early game: Circles (spheres)
+            return { shape: 'sphere', size: 1.2 };
+        } else {
+            // Late game: Boxes (cubes)
+            return { shape: 'box', size: 1.2 };
+        }
+    }
+
     spawnTarget() {
 
-        // Create target geometry - larger targets for easier hitting
-        let radius = 1.2; // Larger default radius for jumbo targets
+        // Get target shape and size based on current score
+        const targetConfig = this.getTargetShapeAndSize();
+
+        // Adjust size for precision mode
+        let size = targetConfig.size;
         if (this.gameMode === 'precision') {
-            radius = 0.8; // Smaller but still generous for precision mode
+            size *= 0.67; // Smaller but still generous for precision mode
         }
 
-        const geometry = new THREE.SphereGeometry(radius, 32, 32); // Higher resolution for smooth appearance
+        // Create geometry based on shape
+        let geometry;
+        switch (targetConfig.shape) {
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(size, 32, 32);
+                break;
+            case 'box':
+                geometry = new THREE.BoxGeometry(size * 1.6, size * 1.6, size * 1.6); // Larger boxes for better visibility
+                break;
+            default:
+                geometry = new THREE.SphereGeometry(size, 32, 32);
+        }
 
         // All targets are light matte blue like in Aimlabs - highly visible
         const material = new THREE.MeshPhongMaterial({
@@ -1138,33 +1198,50 @@ class AimlabsGame {
             shininess: 20, // Matte finish - not too shiny
             emissive: 0x87CEEB,
             emissiveIntensity: 0.25, // Slightly more visible
-            transparent: false
+            transparent: false,
+            side: THREE.DoubleSide // Ensure visibility from all angles
         });
 
         const target = new THREE.Mesh(geometry, material);
         target.castShadow = false; // Potato preset: no shadows
         target.receiveShadow = false; // Potato preset: no shadows
+        target.frustumCulled = false; // Prevent targets from being culled when out of view
+        target.visible = true; // Ensure target is always visible
+        target.matrixAutoUpdate = true; // Ensure matrix updates automatically
 
         // Position targets with proper spacing to prevent overlap
         const maxX = 5; // Increased area for better target spacing
         const maxY = 4; // Increased area for better target spacing
-        const minDistance = 3.0; // Minimum distance between targets (accounting for target size)
+
+        // Calculate actual target size including scaling
+        const actualTargetSize = targetConfig.shape === 'box' ? size * 1.6 : size;
+        const minDistance = actualTargetSize * 3.0; // Minimum distance is 3.0x the target size for better spacing
+        
         let attempts = 0;
         let validPosition = false;
 
-        while (!validPosition && attempts < 20) {
+        while (!validPosition && attempts < 50) { // Increased attempts for better collision detection
             const newX = (Math.random() - 0.5) * maxX * 2;
             const newY = (Math.random() - 0.5) * maxY * 2;
 
-            // Check distance from all existing targets
+            // Check collision with all existing targets using proper 3D distance
             validPosition = true;
             for (const existingTarget of this.targets) {
+                // Calculate actual size of existing target
+                const existingTargetSize = existingTarget.geometry.type === 'BoxGeometry' ? 
+                    (existingTarget.geometry.parameters.width * 1.6) : existingTarget.geometry.parameters.radius;
+                
+                // Calculate minimum required distance (sum of radii + larger buffer for better spacing)
+                const requiredDistance = (actualTargetSize + existingTargetSize) / 2 + 1.0;
+                
+                // Check 3D distance (including Z coordinate)
                 const distance = Math.sqrt(
                     Math.pow(newX - existingTarget.position.x, 2) +
-                    Math.pow(newY - existingTarget.position.y, 2)
+                    Math.pow(newY - existingTarget.position.y, 2) +
+                    Math.pow(-3 - existingTarget.position.z, 2) // Both targets are at z = -3
                 );
 
-                if (distance < minDistance) {
+                if (distance < requiredDistance) {
                     validPosition = false;
                     break;
                 }
@@ -1178,13 +1255,36 @@ class AimlabsGame {
             attempts++;
         }
 
-        // If we couldn't find a valid position after many attempts, place it in a fallback area
+        // If we couldn't find a valid position after many attempts, place it in a guaranteed empty area
         if (!validPosition) {
-            // Use a smaller area for fallback to ensure some spacing
-            const fallbackMaxX = 3;
-            const fallbackMaxY = 2.5;
-            target.position.x = (Math.random() - 0.5) * fallbackMaxX * 2;
-            target.position.y = (Math.random() - 0.5) * fallbackMaxY * 2;
+            // Use a much smaller area and try to find the least crowded spot
+            const fallbackMaxX = 2;
+            const fallbackMaxY = 1.5;
+            let bestX = 0, bestY = 0, maxMinDistance = 0;
+            
+            // Try multiple positions and pick the one with maximum distance to nearest target
+            for (let i = 0; i < 20; i++) {
+                const testX = (Math.random() - 0.5) * fallbackMaxX * 2;
+                const testY = (Math.random() - 0.5) * fallbackMaxY * 2;
+                
+                let minDistanceToAnyTarget = Infinity;
+                for (const existingTarget of this.targets) {
+                    const distance = Math.sqrt(
+                        Math.pow(testX - existingTarget.position.x, 2) +
+                        Math.pow(testY - existingTarget.position.y, 2)
+                    );
+                    minDistanceToAnyTarget = Math.min(minDistanceToAnyTarget, distance);
+                }
+                
+                if (minDistanceToAnyTarget > maxMinDistance) {
+                    maxMinDistance = minDistanceToAnyTarget;
+                    bestX = testX;
+                    bestY = testY;
+                }
+            }
+            
+            target.position.x = bestX;
+            target.position.y = bestY;
         }
 
         target.position.z = -3; // Position targets in front of camera
@@ -1193,44 +1293,14 @@ class AimlabsGame {
         target.spawnTime = Date.now();
         this.targetSpawnTimes.push(target.spawnTime);
 
-        // Gentle spawn animation - smooth scale-up with subtle glow effect
-        target.material.transparent = true;
-        target.material.opacity = 0;
-        target.scale.setScalar(0.3); // Start smaller but not tiny
-
-        // Store original emissive for animation
-        const originalEmissive = target.material.emissive.clone();
-        target.material.emissive.setRGB(0.15, 0.2, 0.4); // Subtle glow at spawn
-
+        // Add target to scene immediately - no spawn animation to prevent visibility issues
         this.scene.add(target);
         this.targets.push(target);
 
-        // Animate target appearance
-        const spawnStartTime = Date.now();
-        const spawnDuration = 250; // Slightly longer for smoother feel
-
-        const animateSpawn = () => {
-            const elapsed = Date.now() - spawnStartTime;
-            const progress = Math.min(elapsed / spawnDuration, 1);
-
-            // Smooth scale effect
-            const easeProgress = 1 - Math.pow(1 - progress, 2); // Quadratic ease-out
-            const scale = 0.3 + easeProgress * 0.7; // Scale from 0.3 to 1.0
-            const opacity = progress; // Fade in
-
-            // Gentle emissive fade back to normal
-            const glowIntensity = 1 - progress;
-            target.material.emissive.lerp(originalEmissive, glowIntensity);
-
-            target.scale.setScalar(scale);
-            target.material.opacity = opacity;
-
-            if (progress < 1) {
-                requestAnimationFrame(animateSpawn);
-            }
-        };
-
-        animateSpawn();
+        // Ensure target is fully visible from the start
+        target.material.transparent = false;
+        target.material.opacity = 1;
+        target.scale.setScalar(1.0);
 
         // Set as current target if none exists
         if (!this.currentTarget) {
@@ -1278,6 +1348,7 @@ class AimlabsGame {
 
         target.beingRemoved = true;
         this.hits++;
+        this.consecutiveHits++;
         this.score += 1; // 1 point per hit
 
         // Track performance data
@@ -1296,8 +1367,8 @@ class AimlabsGame {
         // Simple particle effect
         this.createParticles(target.position, 0x87CEEB, 4);
 
-        // Visual feedback
-        this.createHitFeedback(target.position, '+100');
+        // Visual feedback - show consecutive hits stack
+        this.createHitFeedback(target.position, '+' + this.consecutiveHits);
 
         // Refined target disappearing animation - dynamic but gentler
                 target.material.transparent = true;
@@ -1350,6 +1421,7 @@ class AimlabsGame {
     missTarget() {
         // In aim training, clicking when no target is under crosshair is a miss
         this.misses++;
+        this.consecutiveHits = 0; // Reset consecutive hits on miss
 
         // Play miss sound
         this.playMissSound();
@@ -1362,7 +1434,26 @@ class AimlabsGame {
         const feedback = document.createElement('div');
         feedback.className = 'hit-feedback';
         feedback.textContent = text;
-        feedback.style.color = text.startsWith('+') ? '#4ecdc4' : '#ff6b6b';
+
+        // Dynamic color based on consecutive hits streak
+        if (text.startsWith('+')) {
+            const streak = parseInt(text.substring(1));
+            if (streak === 1) {
+                feedback.style.color = '#4ecdc4'; // Default teal
+            } else if (streak === 2) {
+                feedback.style.color = '#00ff88'; // Bright green
+            } else if (streak === 3) {
+                feedback.style.color = '#ffd700'; // Gold
+            } else if (streak === 4) {
+                feedback.style.color = '#ff8c00'; // Orange
+            } else if (streak === 5) {
+                feedback.style.color = '#ff4500'; // Red-orange
+            } else {
+                feedback.style.color = '#ff1493'; // Hot pink for 6+
+            }
+        } else {
+            feedback.style.color = '#ff6b6b'; // Red for misses
+        }
 
         // Position feedback with some random offset
         const vector = position.clone();
@@ -1793,6 +1884,8 @@ class AimlabsGame {
         }
 
         // Always render for smooth UI transitions
+        this.camera.updateMatrixWorld(true); // Ensure camera matrices are current before rendering
+        this.renderer.clear();
         this.renderer.render(this.scene, this.camera);
 
         // Continue animation loop
