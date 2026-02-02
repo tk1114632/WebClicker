@@ -32,13 +32,15 @@ class AimlabsGame {
         this.targetSpawnTimer = 0;
         this.targetLifetime = 2000; // 2 seconds
         this.spawnDelay = 1000; // 1 second between spawns
+        this.targetSizeScale = 1.0;
+        this.targetDistance = 3.0;
         this.difficulty = 'medium';
         this.gameMode = 'jumbo-tile-frenzy';
         this.maxTargets = 3; // Default for medium difficulty
         this.mouse = new THREE.Vector2();
         this.raycaster = new THREE.Raycaster();
         this.raycaster.near = 0.1;
-        this.raycaster.far = 500; // Increased range to ensure we never miss targets
+        this.raycaster.far = 1000; // Increased range to 1000 for better hit detection
         this.centerVector = new THREE.Vector2(0, 0); // Pre-create center vector for instant raycasting
         this.mouseSensitivity = 0.002;
         this.mouseSensitivityV = null; // For separate vertical sensitivity
@@ -46,19 +48,30 @@ class AimlabsGame {
         this.lastClickTime = 0; // For preventing double-clicks
         this.crosshairElement = document.querySelector('.crosshair');
 
-
-        // Mouse smoothing disabled for maximum responsiveness
-        this.mouseSmoothing = {
-            enabled: false,
-            factor: 0,
-            lastDeltaX: 0,
-            lastDeltaY: 0
-        };
+        // CS2 FOV system - 4:3 (90°) or 16:9 (106.26°)
+        this.aspectRatio = '16:9'; // Default to 16:9
+        this.baseFOV = 90; // CS2 base FOV for 4:3
 
 
 
         // Particle system
         this.particles = [];
+
+        // Environment visuals
+        this.environmentGroup = null;
+
+        // Shared geometries for performance optimization
+        this.sharedGeometries = {
+            sphere: null,
+            box: null,
+            particle: null
+        };
+
+        // Shared materials for performance optimization
+        this.sharedMaterials = {
+            target: null,
+            particle: null
+        };
 
         // Audio system
         this.audioContext = null;
@@ -70,6 +83,14 @@ class AimlabsGame {
         this.crosshairSize = 20;
         this.crosshairThickness = 2;
         this.crosshairDot = false;
+
+        // Weapon system
+        this.pistolModel = null;
+        this.pistolRecoilAnimation = null;
+
+        // i18n
+        this.locale = 'en';
+        this.translations = this.getTranslations();
 
         // Basic FOV data for games
         this.gameFOV = {
@@ -90,18 +111,20 @@ class AimlabsGame {
     init() {
         // Scene setup
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a2e);
+        this.scene.background = this.createBackgroundTexture();
+        this.scene.fog = new THREE.Fog(0x0b0f1a, 6, 24);
 
-        // Camera setup
+        // Camera setup with CS2 FOV system
+        const initialFOV = this.calculateCS2FOV(this.baseFOV, this.aspectRatio);
         this.camera = new THREE.PerspectiveCamera(
-            90, // Default FOV
+            initialFOV,
             window.innerWidth / window.innerHeight,
             0.1,
             2000 // Increased far clipping plane
         );
         this.camera.position.set(0, 0, 5);
         this.camera.rotation.order = 'YXZ'; // FPS camera rotation order
-        this.fov = 90;
+        this.fov = initialFOV;
         this.camera.updateProjectionMatrix(); // Ensure projection matrix is updated
 
         // Renderer setup - balanced quality/performance
@@ -137,9 +160,18 @@ class AimlabsGame {
         // Create game area (invisible walls/floor)
         this.createGameArea();
 
+        // Environment visuals for depth
+        this.setupEnvironment();
+
+        // Initialize shared geometries and materials for performance
+        this.initSharedResources();
+
         // Apply initial settings
         this.applyDifficultySettings();
         this.applyGameModeSettings();
+
+        // Create weapon model
+        this.createPistolModel();
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
@@ -149,18 +181,18 @@ class AimlabsGame {
     }
 
     setupLighting() {
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        // Ambient light - slightly brighter for better visibility
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.7);
         this.scene.add(ambientLight);
 
-        // Directional light (main light) - no shadows for potato preset
+        // Directional light (main light) - no shadows for performance
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(10, 10, 5);
-        directionalLight.castShadow = false; // Potato preset: no shadows
+        directionalLight.castShadow = false;
         this.scene.add(directionalLight);
 
-        // Point light for additional illumination
-        const pointLight = new THREE.PointLight(0x4ecdc4, 0.5, 100);
+        // Point light for additional illumination - slightly adjusted color
+        const pointLight = new THREE.PointLight(0x5ed4d4, 0.5, 100);
         pointLight.position.set(-10, 0, 10);
         this.scene.add(pointLight);
     }
@@ -253,14 +285,11 @@ class AimlabsGame {
 
     createParticles(position, color = 0x4ecdc4, count = 4) {
         for (let i = 0; i < count; i++) {
-            const particleGeometry = new THREE.SphereGeometry(0.02, 6, 6); // Reduced segments for performance
-            const particleMaterial = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.8
-            });
+            // Use shared geometry for better performance
+            const particleMaterial = this.sharedMaterials.particle.clone();
+            particleMaterial.color.setHex(color);
 
-            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            const particle = new THREE.Mesh(this.sharedGeometries.particle, particleMaterial);
 
             // Set initial position with smaller spread
             particle.position.copy(position);
@@ -324,7 +353,181 @@ class AimlabsGame {
         this.scene.add(this.gamePlane);
     }
 
+    createBackgroundTexture() {
+        return window.WebClickerEnvironment.createBackgroundTexture();
+    }
+
+    setupEnvironment() {
+        return window.WebClickerEnvironment.setupEnvironment(this);
+    }
+
+    initSharedResources() {
+        // Create shared geometries (reused by all targets)
+        this.sharedGeometries.sphere = new THREE.SphereGeometry(1, 32, 32);
+        this.sharedGeometries.box = new THREE.BoxGeometry(1, 1, 1);
+        this.sharedGeometries.particle = new THREE.SphereGeometry(0.02, 6, 6);
+
+        // Create shared materials (reused by all targets)
+        this.sharedMaterials.target = new THREE.MeshStandardMaterial({
+            color: 0x87CEEB,
+            metalness: 0.3,
+            roughness: 0.7,
+            emissive: 0x87CEEB,
+            emissiveIntensity: 0.15,
+            transparent: false,
+            side: THREE.DoubleSide
+        });
+
+        this.sharedMaterials.particle = new THREE.MeshBasicMaterial({
+            color: 0x87CEEB,
+            transparent: true,
+            opacity: 0.8
+        });
+    }
+
+    createPistolModel() {
+        // Create a simple USP-style pistol using basic geometries
+        const pistolGroup = new THREE.Group();
+
+        // Materials
+        const gunmetalMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2a2a2a,
+            metalness: 0.8,
+            roughness: 0.3
+        });
+
+        const slideMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            metalness: 0.9,
+            roughness: 0.2
+        });
+
+        // Slide (top part)
+        const slideGeometry = new THREE.BoxGeometry(0.08, 0.06, 0.22);
+        const slide = new THREE.Mesh(slideGeometry, slideMaterial);
+        slide.position.set(0, 0.03, 0);
+        pistolGroup.add(slide);
+
+        // Barrel
+        const barrelGeometry = new THREE.CylinderGeometry(0.012, 0.012, 0.15, 8);
+        const barrel = new THREE.Mesh(barrelGeometry, gunmetalMaterial);
+        barrel.rotation.z = Math.PI / 2;
+        barrel.position.set(0, 0.02, 0.1);
+        pistolGroup.add(barrel);
+
+        // Frame (main body)
+        const frameGeometry = new THREE.BoxGeometry(0.07, 0.08, 0.18);
+        const frame = new THREE.Mesh(frameGeometry, gunmetalMaterial);
+        frame.position.set(0, -0.01, -0.02);
+        pistolGroup.add(frame);
+
+        // Grip
+        const gripGeometry = new THREE.BoxGeometry(0.05, 0.12, 0.08);
+        const grip = new THREE.Mesh(gripGeometry, gunmetalMaterial);
+        grip.position.set(0, -0.09, -0.05);
+        grip.rotation.x = 0.2; // Slight angle
+        pistolGroup.add(grip);
+
+        // Trigger guard
+        const triggerGuardGeometry = new THREE.BoxGeometry(0.03, 0.05, 0.06);
+        const triggerGuard = new THREE.Mesh(triggerGuardGeometry, gunmetalMaterial);
+        triggerGuard.position.set(0, -0.03, -0.01);
+        pistolGroup.add(triggerGuard);
+
+        // Position the pistol in front of the camera (right side, FPS style)
+        pistolGroup.position.set(0.15, -0.15, -0.4);
+        pistolGroup.rotation.y = -0.1; // Slight angle
+        pistolGroup.rotation.x = 0.05;
+
+        // Add to camera (so it moves with camera)
+        this.camera.add(pistolGroup);
+        this.pistolModel = pistolGroup;
+
+        // Initially hide the pistol (show only during gameplay)
+        pistolGroup.visible = false;
+    }
+
+    getTranslations() {
+        return window.WebClickerI18n.getTranslations();
+    }
+
+    getSavedLocale() {
+        return window.WebClickerI18n.getSavedLocale(this);
+    }
+
+    setLocale(locale) {
+        return window.WebClickerI18n.setLocale(this, locale);
+    }
+
+    t(key) {
+        return window.WebClickerI18n.t(this, key);
+    }
+
+    applyLocale() {
+        return window.WebClickerI18n.applyLocale(this);
+    }
+
+    calculateCS2FOV(baseFOV, aspectRatio) {
+        // CS2 uses horizontal FOV as base
+        // 4:3 aspect ratio: 90° (default)
+        // 16:9 aspect ratio: 106.26° (calculated from 4:3)
+        
+        if (aspectRatio === '4:3') {
+            return baseFOV; // 90 degrees for 4:3
+        } else if (aspectRatio === '16:9') {
+            // Convert 4:3 horizontal FOV to 16:9 horizontal FOV
+            // Formula: FOV_16:9 = 2 * atan(tan(FOV_4:3 / 2) * (16/9) / (4/3))
+            const fov43Rad = (baseFOV * Math.PI) / 180;
+            const aspect43 = 4 / 3;
+            const aspect169 = 16 / 9;
+            
+            const fov169Rad = 2 * Math.atan(
+                Math.tan(fov43Rad / 2) * (aspect169 / aspect43)
+            );
+            
+            return (fov169Rad * 180) / Math.PI; // Returns ~106.26 degrees
+        }
+        
+        return baseFOV; // Fallback
+    }
+
+    setAspectRatio(aspectRatio) {
+        this.aspectRatio = aspectRatio;
+        const newFOV = this.calculateCS2FOV(this.baseFOV, aspectRatio);
+        this.fov = newFOV;
+        this.camera.fov = newFOV;
+        this.camera.updateProjectionMatrix();
+        
+        // Save to localStorage
+        localStorage.setItem('webclicker_aspect_ratio', aspectRatio);
+        
+        // Update UI if element exists
+        const aspectRatioSelect = document.getElementById('aspect-ratio-select');
+        if (aspectRatioSelect) {
+            aspectRatioSelect.value = aspectRatio;
+        }
+    }
+
+    loadAspectRatio() {
+        const saved = localStorage.getItem('webclicker_aspect_ratio');
+        if (saved && (saved === '4:3' || saved === '16:9')) {
+            this.aspectRatio = saved;
+        } else {
+            this.aspectRatio = '16:9'; // Default
+        }
+        return this.aspectRatio;
+    }
+
     setupEventListeners() {
+        const getEl = (id) => document.getElementById(id);
+        const bind = (id, event, handler) => {
+            const el = getEl(id);
+            if (el) {
+                el.addEventListener(event, handler);
+            }
+            return el;
+        };
+
         // Mouse events - use mousedown for responsive hit detection
         document.addEventListener('mousemove', (event) => this.onMouseMove(event));
         document.addEventListener('mousedown', (event) => this.onMouseClick(event));
@@ -334,89 +537,125 @@ class AimlabsGame {
         this.renderer.domElement.addEventListener('keydown', (event) => this.onKeyDown(event));
 
         // UI button events
-        document.getElementById('start-game-btn').addEventListener('click', () => this.startGame());
-        document.getElementById('restart-btn').addEventListener('click', () => this.fullRestart());
-        document.getElementById('menu-btn').addEventListener('click', () => this.returnToMenu());
+        bind('start-game-btn', 'click', () => this.startGame());
+        bind('restart-btn', 'click', () => this.fullRestart());
+        bind('menu-btn', 'click', () => this.returnToMenu());
 
         // Pause menu button events
-        document.getElementById('restart-pause-btn').addEventListener('click', () => this.fullRestart());
-        document.getElementById('menu-pause-btn').addEventListener('click', () => this.returnToMenu());
+        bind('restart-pause-btn', 'click', () => this.fullRestart());
+        bind('menu-pause-btn', 'click', () => this.returnToMenu());
 
         // Settings event listeners
-        document.getElementById('difficulty-select').addEventListener('change', (e) => {
+        bind('difficulty-select', 'change', (e) => {
             this.difficulty = e.target.value;
             this.applyDifficultySettings();
         });
-        document.getElementById('game-mode-select').addEventListener('change', (e) => {
+        bind('game-mode-select', 'change', (e) => {
             this.gameMode = e.target.value;
             this.applyGameModeSettings();
         });
-        document.getElementById('target-lifetime').addEventListener('input', (e) => {
+        bind('target-lifetime', 'input', (e) => {
             this.targetLifetime = e.target.value * 1000;
-            document.getElementById('target-lifetime-value').textContent = e.target.value + 's';
+            const targetLifetimeValue = getEl('target-lifetime-value');
+            if (targetLifetimeValue) {
+                targetLifetimeValue.textContent = e.target.value + 's';
+            }
         });
-        document.getElementById('spawn-delay').addEventListener('input', (e) => {
+        bind('spawn-delay', 'input', (e) => {
             this.spawnDelay = e.target.value * 1000;
-            document.getElementById('spawn-delay-value').textContent = e.target.value + 's';
+            const spawnDelayValue = getEl('spawn-delay-value');
+            if (spawnDelayValue) {
+                spawnDelayValue.textContent = e.target.value + 's';
+            }
         });
-        document.getElementById('fov-slider').addEventListener('input', (e) => {
+        bind('fov-slider', 'input', (e) => {
             this.fov = parseInt(e.target.value);
             this.camera.fov = this.fov;
             this.camera.updateProjectionMatrix();
-            document.getElementById('fov-value').textContent = this.fov + '°';
+            const fovValue = getEl('fov-value');
+            if (fovValue) {
+                fovValue.textContent = this.fov + '°';
+            }
+        });
+
+        bind('target-size', 'input', (e) => {
+            this.targetSizeScale = parseFloat(e.target.value);
+            const targetSizeValue = getEl('target-size-value');
+            if (targetSizeValue) {
+                targetSizeValue.textContent = this.targetSizeScale.toFixed(1) + 'x';
+            }
+        });
+
+        bind('target-distance', 'input', (e) => {
+            this.targetDistance = parseFloat(e.target.value);
+            const targetDistanceValue = getEl('target-distance-value');
+            if (targetDistanceValue) {
+                targetDistanceValue.textContent = this.targetDistance.toFixed(1);
+            }
         });
 
         // Crosshair settings event listeners
-        document.getElementById('crosshair-style').addEventListener('change', (e) => {
+        bind('crosshair-style', 'change', (e) => {
             this.crosshairStyle = e.target.value;
             this.updateCrosshairStyle();
             this.saveCrosshairSettings();
         });
-        document.getElementById('crosshair-size').addEventListener('input', (e) => {
+        bind('crosshair-size', 'input', (e) => {
             this.crosshairSize = parseInt(e.target.value);
-            document.getElementById('crosshair-size-value').textContent = this.crosshairSize + 'px';
+            const crosshairSizeValue = getEl('crosshair-size-value');
+            if (crosshairSizeValue) {
+                crosshairSizeValue.textContent = this.crosshairSize + 'px';
+            }
             this.updateCrosshairSize();
             this.saveCrosshairSettings();
         });
-        document.getElementById('crosshair-thickness').addEventListener('input', (e) => {
+        bind('crosshair-thickness', 'input', (e) => {
             this.crosshairThickness = parseInt(e.target.value);
-            document.getElementById('crosshair-thickness-value').textContent = this.crosshairThickness + 'px';
+            const crosshairThicknessValue = getEl('crosshair-thickness-value');
+            if (crosshairThicknessValue) {
+                crosshairThicknessValue.textContent = this.crosshairThickness + 'px';
+            }
             this.updateCrosshairThickness();
             this.saveCrosshairSettings();
         });
-        document.getElementById('crosshair-dot').addEventListener('change', (e) => {
+        bind('crosshair-dot', 'change', (e) => {
             this.crosshairDot = e.target.checked;
             this.updateCrosshairDot();
             this.saveCrosshairSettings();
         });
-        document.getElementById('reset-crosshair-btn').addEventListener('click', () => {
+        bind('reset-crosshair-btn', 'click', () => {
             this.resetCrosshairSettings();
         });
-        document.getElementById('preview-crosshair-btn').addEventListener('click', () => {
+        bind('preview-crosshair-btn', 'click', () => {
             this.previewCrosshair();
         });
 
         // Sensitivity settings event listeners
-        document.getElementById('game-select').addEventListener('change', (e) => {
+        bind('game-select', 'change', (e) => {
             const game = e.target.value;
             const fov = this.gameFOV[game] || 90;
-            document.getElementById('fov-input').placeholder = fov.toString();
-            document.getElementById('fov-input').value = fov.toString();
+            const fovInput = getEl('fov-input');
+            if (fovInput) {
+                fovInput.placeholder = fov.toString();
+                fovInput.value = fov.toString();
+            }
         });
 
-        document.getElementById('separate-axes').addEventListener('change', (e) => {
-            const container = document.getElementById('separate-axes-container');
-            container.style.display = e.target.checked ? 'block' : 'none';
+        bind('separate-axes', 'change', (e) => {
+            const container = getEl('separate-axes-container');
+            if (container) {
+                container.style.display = e.target.checked ? 'block' : 'none';
+            }
         });
 
-        document.getElementById('test-sens-btn').addEventListener('click', () => this.testSensitivity());
-        document.getElementById('save-sens-btn').addEventListener('click', () => this.saveSensitivity());
+        bind('test-sens-btn', 'click', () => this.testSensitivity());
+        bind('save-sens-btn', 'click', () => this.saveSensitivity());
 
         // Quick preset buttons
-        document.getElementById('preset-ow').addEventListener('click', () => this.loadPreset('overwatch'));
-        document.getElementById('preset-valorant').addEventListener('click', () => this.loadPreset('valorant'));
-        document.getElementById('preset-fortnite').addEventListener('click', () => this.loadPreset('fortnite'));
-        document.getElementById('preset-csgo').addEventListener('click', () => this.loadPreset('csgo'));
+        bind('preset-ow', 'click', () => this.loadPreset('overwatch'));
+        bind('preset-valorant', 'click', () => this.loadPreset('valorant'));
+        bind('preset-fortnite', 'click', () => this.loadPreset('fortnite'));
+        bind('preset-csgo', 'click', () => this.loadPreset('csgo'));
 
         // Audio context resume on user interaction (required by some browsers)
         document.addEventListener('click', () => {
@@ -426,18 +665,89 @@ class AimlabsGame {
         }, { once: true });
 
         // History button event listener
-        document.getElementById('clear-history-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to clear all game history? This cannot be undone.')) {
+        bind('clear-history-btn', 'click', () => {
+            if (confirm(this.t('alerts.clearHistoryConfirm'))) {
                 this.clearHistory();
             }
         });
+
+        // Steam64 binding
+        const steam64Input = getEl('steam64-input');
+        const steam64SaveBtn = getEl('steam64-save-btn');
+        if (steam64Input) {
+            steam64Input.value = this.loadSteam64();
+            steam64Input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    this.saveSteam64();
+                }
+            });
+        }
+        if (steam64SaveBtn) {
+            steam64SaveBtn.addEventListener('click', () => this.saveSteam64());
+        }
+
+        // Language selector
+        const languageSelect = bind('language-select', 'change', (e) => {
+            this.setLocale(e.target.value);
+        });
+        this.locale = this.getSavedLocale();
+        if (languageSelect) {
+            languageSelect.value = this.locale;
+        }
+        this.applyLocale();
+
+        // Aspect ratio selector (CS2 FOV system)
+        const aspectRatioSelect = bind('aspect-ratio-select', 'change', (e) => {
+            this.setAspectRatio(e.target.value);
+        });
+        this.aspectRatio = this.loadAspectRatio();
+        if (aspectRatioSelect) {
+            aspectRatioSelect.value = this.aspectRatio;
+        }
+        // Apply initial FOV
+        const initialFOV = this.calculateCS2FOV(this.baseFOV, this.aspectRatio);
+        this.fov = initialFOV;
+        this.camera.fov = initialFOV;
+        this.camera.updateProjectionMatrix();
 
         // Load saved settings
         this.loadSavedSensitivitySettings();
         this.loadCrosshairSettings();
 
         // Set initial FOV value
-        document.getElementById('fov-input').value = this.gameFOV.fortnite;
+        const defaultFov = this.gameFOV.csgo || 90;
+        const fovInput = getEl('fov-input');
+        if (fovInput) {
+            fovInput.value = defaultFov;
+            fovInput.placeholder = defaultFov.toString();
+        }
+        const fovSlider = getEl('fov-slider');
+        const fovValue = getEl('fov-value');
+        if (fovSlider) {
+            fovSlider.value = defaultFov;
+        }
+        if (fovValue) {
+            fovValue.textContent = defaultFov + '°';
+        }
+
+        const targetSizeInput = getEl('target-size');
+        const targetSizeValue = getEl('target-size-value');
+        if (targetSizeInput) {
+            targetSizeInput.value = this.targetSizeScale.toFixed(1);
+        }
+        if (targetSizeValue) {
+            targetSizeValue.textContent = this.targetSizeScale.toFixed(1) + 'x';
+        }
+
+        const targetDistanceInput = getEl('target-distance');
+        const targetDistanceValue = getEl('target-distance-value');
+        if (targetDistanceInput) {
+            targetDistanceInput.value = this.targetDistance.toFixed(1);
+        }
+        if (targetDistanceValue) {
+            targetDistanceValue.textContent = this.targetDistance.toFixed(1);
+        }
 
         // Test localStorage
         try {
@@ -456,13 +766,14 @@ class AimlabsGame {
         // Initialize history display after a short delay to ensure DOM is fully loaded
         setTimeout(() => {
             this.updateHistoryDisplay();
+            this.refreshHistoryFromServer();
         }, 100);
     }
 
     onMouseMove(event) {
         if (this.gameState !== 'playing') return;
 
-        // FPS-style camera rotation
+        // FPS-style camera rotation with raw input (no smoothing for maximum responsiveness)
         let deltaX = event.movementX || 0;
         let deltaY = event.movementY || 0;
 
@@ -470,15 +781,6 @@ class AimlabsGame {
         const maxMovement = 100; // Maximum pixels per frame to prevent jumps
         deltaX = Math.max(-maxMovement, Math.min(maxMovement, deltaX));
         deltaY = Math.max(-maxMovement, Math.min(maxMovement, deltaY));
-
-        // Apply mouse smoothing to prevent camera jumps
-        if (this.mouseSmoothing.enabled) {
-            deltaX = this.mouseSmoothing.lastDeltaX * this.mouseSmoothing.factor + deltaX * (1 - this.mouseSmoothing.factor);
-            deltaY = this.mouseSmoothing.lastDeltaY * this.mouseSmoothing.factor + deltaY * (1 - this.mouseSmoothing.factor);
-
-            this.mouseSmoothing.lastDeltaX = deltaX;
-            this.mouseSmoothing.lastDeltaY = deltaY;
-        }
 
         // Use separate sensitivities if available, otherwise use the same for both axes
         const sensH = this.mouseSensitivity;
@@ -489,11 +791,12 @@ class AimlabsGame {
             this.cameraRotation.y -= deltaX * sensH;
             this.cameraRotation.x -= deltaY * sensV;
 
-        // Limit vertical rotation
-        this.cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.cameraRotation.x));
+            // Limit vertical rotation to -89° to +89° (prevents gimbal lock at -90°/+90°)
+            const maxVerticalAngle = (89 * Math.PI) / 180; // 89 degrees in radians
+            this.cameraRotation.x = Math.max(-maxVerticalAngle, Math.min(maxVerticalAngle, this.cameraRotation.x));
 
-        // Limit horizontal rotation to prevent floating point issues
-        this.cameraRotation.y = this.cameraRotation.y % (Math.PI * 2);
+            // Limit horizontal rotation to prevent floating point issues
+            this.cameraRotation.y = this.cameraRotation.y % (Math.PI * 2);
 
             // Ensure camera rotation values are valid
             if (isFinite(this.cameraRotation.y) && isFinite(this.cameraRotation.x)) {
@@ -780,7 +1083,10 @@ class AimlabsGame {
         this.crosshairElement.style.display = 'block';
         document.body.requestPointerLock();
 
-        // Hide sensitivity converter during gameplay
+        // Show pistol model
+        if (this.pistolModel) {
+            this.pistolModel.visible = true;
+        }
 
         this.updateUI();
     }
@@ -1065,6 +1371,11 @@ class AimlabsGame {
         this.crosshairElement.style.display = 'none';
         document.exitPointerLock();
 
+        // Hide pistol model
+        if (this.pistolModel) {
+            this.pistolModel.visible = false;
+        }
+
         // Calculate advanced performance metrics
         const performance = this.calculatePerformanceMetrics();
 
@@ -1200,188 +1511,59 @@ class AimlabsGame {
     }
 
     getTargetShapeAndSize() {
-        // Dynamic shape progression based on score - circles to boxes
-        if (this.score < 15) {
-            // Early game: Circles (spheres)
-            return { shape: 'sphere', size: 1.2 };
-        } else {
-            // Late game: Boxes (cubes)
-            return { shape: 'box', size: 1.2 };
-        }
+        return window.WebClickerTargets.getTargetShapeAndSize(this);
     }
 
     spawnTarget() {
-
-        // Get target shape and size based on current score
-        const targetConfig = this.getTargetShapeAndSize();
-
-        // Adjust size for precision mode
-        let size = targetConfig.size;
-        if (this.gameMode === 'precision') {
-            size *= 0.67; // Smaller but still generous for precision mode
-        }
-
-        // Create geometry based on shape
-        let geometry;
-        switch (targetConfig.shape) {
-            case 'sphere':
-                geometry = new THREE.SphereGeometry(size, 32, 32);
-                break;
-            case 'box':
-                geometry = new THREE.BoxGeometry(size * 1.6, size * 1.6, size * 1.6); // Larger boxes for better visibility
-                break;
-            default:
-                geometry = new THREE.SphereGeometry(size, 32, 32);
-        }
-
-        // All targets are light matte blue like in Aimlabs - highly visible
-        const material = new THREE.MeshPhongMaterial({
-            color: 0x87CEEB, // Light blue color
-            shininess: 20, // Matte finish - not too shiny
-            emissive: 0x87CEEB,
-            emissiveIntensity: 0.25, // Slightly more visible
-            transparent: false,
-            side: THREE.DoubleSide // Ensure visibility from all angles
-        });
-
-        const target = new THREE.Mesh(geometry, material);
-        target.castShadow = false; // Potato preset: no shadows
-        target.receiveShadow = false; // Potato preset: no shadows
-        target.frustumCulled = false; // Prevent targets from being culled when out of view
-        target.visible = true; // Ensure target is always visible
-        target.matrixAutoUpdate = true; // Ensure matrix updates automatically
-
-        // Position targets with proper spacing to prevent overlap
-        const maxX = 5; // Increased area for better target spacing
-        const maxY = 4; // Increased area for better target spacing
-
-        // Calculate actual target size including scaling
-        const actualTargetSize = targetConfig.shape === 'box' ? size * 1.6 : size;
-        const minDistance = actualTargetSize * 3.0; // Minimum distance is 3.0x the target size for better spacing
-        
-        let attempts = 0;
-        let validPosition = false;
-
-        while (!validPosition && attempts < 50) { // Increased attempts for better collision detection
-            const newX = (Math.random() - 0.5) * maxX * 2;
-            const newY = (Math.random() - 0.5) * maxY * 2;
-
-            // Check collision with all existing targets using proper 3D distance
-            validPosition = true;
-            for (const existingTarget of this.targets) {
-                // Calculate actual size of existing target
-                const existingTargetSize = existingTarget.geometry.type === 'BoxGeometry' ? 
-                    (existingTarget.geometry.parameters.width * 1.6) : existingTarget.geometry.parameters.radius;
-                
-                // Calculate minimum required distance (sum of radii + larger buffer for better spacing)
-                const requiredDistance = (actualTargetSize + existingTargetSize) / 2 + 1.0;
-                
-                // Check 3D distance (including Z coordinate)
-                const distance = Math.sqrt(
-                    Math.pow(newX - existingTarget.position.x, 2) +
-                    Math.pow(newY - existingTarget.position.y, 2) +
-                    Math.pow(-3 - existingTarget.position.z, 2) // Both targets are at z = -3
-                );
-
-                if (distance < requiredDistance) {
-                    validPosition = false;
-                    break;
-                }
-            }
-
-            if (validPosition) {
-                target.position.x = newX;
-                target.position.y = newY;
-            }
-
-            attempts++;
-        }
-
-        // If we couldn't find a valid position after many attempts, place it in a guaranteed empty area
-        if (!validPosition) {
-            // Use a much smaller area and try to find the least crowded spot
-            const fallbackMaxX = 2;
-            const fallbackMaxY = 1.5;
-            let bestX = 0, bestY = 0, maxMinDistance = 0;
-            
-            // Try multiple positions and pick the one with maximum distance to nearest target
-            for (let i = 0; i < 20; i++) {
-                const testX = (Math.random() - 0.5) * fallbackMaxX * 2;
-                const testY = (Math.random() - 0.5) * fallbackMaxY * 2;
-                
-                let minDistanceToAnyTarget = Infinity;
-                for (const existingTarget of this.targets) {
-                    const distance = Math.sqrt(
-                        Math.pow(testX - existingTarget.position.x, 2) +
-                        Math.pow(testY - existingTarget.position.y, 2)
-                    );
-                    minDistanceToAnyTarget = Math.min(minDistanceToAnyTarget, distance);
-                }
-                
-                if (minDistanceToAnyTarget > maxMinDistance) {
-                    maxMinDistance = minDistanceToAnyTarget;
-                    bestX = testX;
-                    bestY = testY;
-                }
-            }
-            
-            target.position.x = bestX;
-            target.position.y = bestY;
-        }
-
-        target.position.z = -3; // Position targets in front of camera
-
-        // Add spawn time for animation and performance tracking
-        target.spawnTime = Date.now();
-        this.targetSpawnTimes.push(target.spawnTime);
-
-        // Add target to scene immediately - no spawn animation to prevent visibility issues
-        this.scene.add(target);
-        this.targets.push(target);
-
-        // Ensure target is fully visible from the start
-        target.material.transparent = false;
-        target.material.opacity = 1;
-        target.scale.setScalar(1.0);
-
-        // Set as current target if none exists
-        if (!this.currentTarget) {
-            this.currentTarget = target;
-            this.highlightTarget(target);
-        }
+        return window.WebClickerTargets.spawnTarget(this);
     }
 
     highlightTarget(target) {
-        // Create highlight effect
-        const highlight = document.createElement('div');
-        highlight.className = 'target-highlight';
-        document.body.appendChild(highlight);
-
-        // Position highlight
-        this.updateHighlightPosition(highlight, target);
-
-        // Remove highlight after animation
-        setTimeout(() => {
-            if (highlight.parentNode) {
-                highlight.parentNode.removeChild(highlight);
-            }
-        }, 300);
+        return window.WebClickerTargets.highlightTarget(this, target);
     }
 
     updateHighlightPosition(highlight, target) {
-        const vector = target.position.clone();
-        vector.project(this.camera);
+        return window.WebClickerTargets.updateHighlightPosition(this, highlight, target);
+    }
 
-        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+    playPistolRecoilAnimation() {
+        if (!this.pistolModel || !this.pistolModel.visible) return;
 
-        const width = 1.5 * (window.innerWidth / 16); // Approximate size
-        const height = 1.5 * (window.innerHeight / 12);
+        // Cancel any existing recoil animation
+        if (this.pistolRecoilAnimation) {
+            this.pistolRecoilAnimation.kill();
+        }
 
-        highlight.style.left = (x - width/2) + 'px';
-        highlight.style.top = (y - height/2) + 'px';
-        highlight.style.width = width + 'px';
-        highlight.style.height = height + 'px';
+        // Store original position
+        const originalX = this.pistolModel.position.x;
+        const originalY = this.pistolModel.position.y;
+        const originalZ = this.pistolModel.position.z;
+        const originalRotX = this.pistolModel.rotation.x;
+
+        // Quick recoil animation (50ms up, 150ms recovery)
+        this.pistolRecoilAnimation = gsap.timeline()
+            .to(this.pistolModel.position, {
+                y: originalY + 0.02, // Slight upward movement
+                z: originalZ + 0.03, // Slight backward movement
+                duration: 0.05,
+                ease: 'power2.out'
+            })
+            .to(this.pistolModel.rotation, {
+                x: originalRotX + 0.08, // Slight rotation up
+                duration: 0.05,
+                ease: 'power2.out'
+            }, '<') // Start at the same time
+            .to(this.pistolModel.position, {
+                y: originalY,
+                z: originalZ,
+                duration: 0.15,
+                ease: 'power2.inOut'
+            })
+            .to(this.pistolModel.rotation, {
+                x: originalRotX,
+                duration: 0.15,
+                ease: 'power2.inOut'
+            }, '<'); // Start at the same time
     }
 
     hitTarget(target) {
@@ -1392,6 +1574,9 @@ class AimlabsGame {
         this.hits++;
         this.consecutiveHits++;
         this.score += 1; // 1 point per hit
+
+        // Play pistol recoil animation
+        this.playPistolRecoilAnimation();
 
         // Track performance data
         const currentTime = Date.now();
@@ -1421,6 +1606,16 @@ class AimlabsGame {
         // Always spawn a replacement target immediately when one is hit
         this.spawnTarget();
 
+        // Hit highlight effect - instant flash
+        const originalEmissiveIntensity = target.material.emissiveIntensity;
+        target.material.emissiveIntensity = 1.0;
+        
+        // Quick recovery using GSAP
+        gsap.to(target.material, {
+            emissiveIntensity: originalEmissiveIntensity,
+            duration: 0.15,
+            ease: 'power2.out'
+        });
 
         // Simple particle effect
         this.createParticles(target.position, 0x87CEEB, 4);
@@ -1429,13 +1624,13 @@ class AimlabsGame {
         this.createHitFeedback(target.position, '+' + this.consecutiveHits);
 
         // Refined target disappearing animation - dynamic but gentler
-                target.material.transparent = true;
+        target.material.transparent = true;
         const startTime = Date.now();
         const duration = 180; // Slightly longer for smoother feel
 
         // Store original color for restoration
         const originalColor = target.material.color.clone();
-        const originalEmissive = target.material.emissive.clone();
+        const originalEmissiveColor = target.material.emissive.clone();
 
         const animateRemoval = () => {
             const elapsed = Date.now() - startTime;
@@ -1571,16 +1766,26 @@ class AimlabsGame {
     }
 
     updateUI() {
-        document.getElementById('score-display').textContent = `Score: ${this.score}`;
-        document.getElementById('accuracy').textContent = `Accuracy: ${this.getAccuracy()}%`;
+        const scoreDisplay = document.getElementById('score-display');
+        const accuracyDisplay = document.getElementById('accuracy');
+        if (scoreDisplay) {
+            scoreDisplay.textContent = `${this.t('game.score')}: ${this.score}`;
+        }
+        if (accuracyDisplay) {
+            accuracyDisplay.textContent = `${this.t('game.accuracy')}: ${this.getAccuracy()}%`;
+        }
 
         if (this.gameState === 'playing') {
             this.elapsedTime = (Date.now() - this.startTime) / 1000;
-            document.getElementById('timer').textContent = `Time: ${this.elapsedTime.toFixed(2)}s`;
+            const timerDisplay = document.getElementById('timer');
+            if (timerDisplay) {
+                let timerText = `${this.t('game.time')}: ${this.elapsedTime.toFixed(2)}s`;
 
-            // Show warm-up progress for first 5 hits
-            if (this.hits <= 5) {
-                document.getElementById('timer').textContent += ` | Warm-up: ${this.hits}/5`;
+                // Show warm-up progress for first 5 hits
+                if (this.hits <= 5) {
+                    timerText += ` | ${this.t('game.warmup')}: ${this.hits}/5`;
+                }
+                timerDisplay.textContent = timerText;
             }
 
             // End game after 30 seconds
@@ -1876,15 +2081,32 @@ class AimlabsGame {
 
                 // Populate UI with saved settings
                 if (settings.gameSettings) {
-                    document.getElementById('game-select').value = settings.gameSettings.game;
-                    document.getElementById('sens-input').value = settings.gameSettings.sensitivity;
-                    document.getElementById('fov-input').value = settings.gameSettings.fov;
-                    document.getElementById('separate-axes').checked = settings.gameSettings.separateAxes || false;
+                    const gameSelect = document.getElementById('game-select');
+                    if (gameSelect) {
+                        gameSelect.value = settings.gameSettings.game || 'csgo';
+                    }
+                    const sensInput = document.getElementById('sens-input');
+                    if (sensInput) {
+                        sensInput.value = settings.gameSettings.sensitivity;
+                    }
+                    const fovInput = document.getElementById('fov-input');
+                    if (fovInput) {
+                        fovInput.value = settings.gameSettings.fov;
+                    }
 
+                    const separateAxes = document.getElementById('separate-axes');
+                    const separateAxesContainer = document.getElementById('separate-axes-container');
+                    if (separateAxes) {
+                        separateAxes.checked = settings.gameSettings.separateAxes || false;
+                    }
+                    if (separateAxesContainer) {
+                        separateAxesContainer.style.display = settings.gameSettings.separateAxes ? 'block' : 'none';
+                    }
                     if (settings.gameSettings.separateAxes) {
-                        document.getElementById('separate-axes-container').style.display = 'block';
-                        document.getElementById('sens-h-input').value = settings.gameSettings.sensH;
-                        document.getElementById('sens-v-input').value = settings.gameSettings.sensV;
+                        const sensHInput = document.getElementById('sens-h-input');
+                        const sensVInput = document.getElementById('sens-v-input');
+                        if (sensHInput) sensHInput.value = settings.gameSettings.sensH;
+                        if (sensVInput) sensVInput.value = settings.gameSettings.sensV;
                     }
                 }
             } catch (e) {
@@ -1897,94 +2119,51 @@ class AimlabsGame {
     }
 
     testSensitivity() {
-        const game = document.getElementById('game-select').value;
-        const sensitivity = parseFloat(document.getElementById('sens-input').value);
-        const fov = parseFloat(document.getElementById('fov-input').value) || this.gameFOV[game] || 90;
-        const separateAxes = document.getElementById('separate-axes').checked;
+        const sensInput = document.getElementById('sens-input');
+        const fovInput = document.getElementById('fov-input');
+        if (!sensInput) return;
+        const game = 'csgo';
+        const sensitivity = parseFloat(sensInput.value);
+        const fov = parseFloat(fovInput ? fovInput.value : '') || this.gameFOV[game] || 90;
 
         if (!sensitivity || sensitivity <= 0) {
-            alert('Please enter a valid sensitivity value');
+            alert(this.t('alerts.invalidSensitivity'));
             return;
         }
 
-        let sensH = sensitivity;
-        let sensV = sensitivity;
-
-        if (separateAxes) {
-            sensH = parseFloat(document.getElementById('sens-h-input').value) || sensitivity;
-            sensV = parseFloat(document.getElementById('sens-v-input').value) || sensitivity;
-
-            if (sensH <= 0 || sensV <= 0) {
-                alert('Please enter valid horizontal and vertical sensitivity values');
-                return;
-            }
-        }
-
-        // Accurate game-specific sensitivity conversion
-        let mouseSensH, mouseSensV;
-
-        // Convert game sensitivity to mouse sensitivity based on game mechanics
-        if (game === 'fortnite') {
-            // Fortnite: sensitivity values are typically 0.1-1.0, representing degrees per inch
-            // These need to be scaled appropriately for our pixel-based system
-            mouseSensH = parseFloat(sensH) * 0.0008; // Much higher scaling for Fortnite
-            mouseSensV = separateAxes ? parseFloat(sensV) * 0.0008 : mouseSensH;
-        } else if (game === 'valorant') {
-            // Valorant: 0.01 = 1 degree per 360° turn
-            const degreesPer360 = parseFloat(sensH) * 100; // Convert from 0.X to degrees
-            const radiansPer360 = (degreesPer360 / 360) * (Math.PI * 2);
-            mouseSensH = radiansPer360 * 0.001;
-            mouseSensV = separateAxes ? (parseFloat(sensV) * 100 / 360) * (Math.PI * 2) * 0.001 : mouseSensH;
-        } else if (game === 'overwatch') {
-            // Overwatch: sensitivity values are degrees per 360° turn
-            const degreesPer360 = parseFloat(sensH);
-            const radiansPer360 = (degreesPer360 / 360) * (Math.PI * 2);
-            mouseSensH = radiansPer360 * 0.0008;
-            mouseSensV = separateAxes ? (parseFloat(sensV) / 360) * (Math.PI * 2) * 0.0008 : mouseSensH;
-        } else {
-            // Default/fallback conversion for other games
-            mouseSensH = parseFloat(sensH) * 0.001;
-            mouseSensV = separateAxes ? parseFloat(sensV) * 0.001 : mouseSensH;
-        }
-
-        // Apply to game
-        this.mouseSensitivity = mouseSensH;
-        this.mouseSensitivityV = mouseSensV;
+        const mouseSens = sensitivity * 0.002;
+        this.mouseSensitivity = mouseSens;
+        this.mouseSensitivityV = mouseSens;
+        this.fov = fov;
+        this.camera.fov = this.fov;
+        this.camera.updateProjectionMatrix();
 
         // Start test mode (just start the game with the new sensitivity)
         this.startGame();
     }
 
     saveSensitivity() {
-        const game = document.getElementById('game-select').value;
-        const sensitivity = parseFloat(document.getElementById('sens-input').value);
-        const fov = parseFloat(document.getElementById('fov-input').value) || this.gameFOV[game] || 90;
-        const separateAxes = document.getElementById('separate-axes').checked;
+        const sensInput = document.getElementById('sens-input');
+        const fovInput = document.getElementById('fov-input');
+        if (!sensInput) return;
+        const game = 'csgo';
+        const sensitivity = parseFloat(sensInput.value);
+        const fov = parseFloat(fovInput ? fovInput.value : '') || this.gameFOV[game] || 90;
 
         if (!sensitivity || sensitivity <= 0) {
-            alert('Please enter a valid sensitivity value');
+            alert(this.t('alerts.invalidSensitivity'));
             return;
         }
 
-        let sensH = sensitivity;
-        let sensV = sensitivity;
-
-        if (separateAxes) {
-            sensH = parseFloat(document.getElementById('sens-h-input').value) || sensitivity;
-            sensV = parseFloat(document.getElementById('sens-v-input').value) || sensitivity;
-
-            if (sensH <= 0 || sensV <= 0) {
-                alert('Please enter valid horizontal and vertical sensitivity values');
-                return;
-            }
-        }
-
         // Calculate and save mouse sensitivity
-        let mouseSensH = sensH * 0.002; // Basic conversion factor
-        let mouseSensV = separateAxes ? sensV * 0.002 : mouseSensH;
+        const mouseSensH = sensitivity * 0.002; // CS2/CSGO conversion factor
+        const mouseSensV = mouseSensH;
 
         this.mouseSensitivity = mouseSensH;
         this.mouseSensitivityV = mouseSensV;
+        this.fov = fov;
+        this.camera.fov = this.fov;
+        this.camera.updateProjectionMatrix();
 
         // Save settings to localStorage
         const settings = {
@@ -1993,16 +2172,14 @@ class AimlabsGame {
             gameSettings: {
                 game: game,
                 sensitivity: sensitivity,
-                sensH: sensH,
-                sensV: sensV,
                 fov: fov,
-                separateAxes: separateAxes
+                separateAxes: false
             }
         };
 
         localStorage.setItem('webclicker_sensitivity_settings', JSON.stringify(settings));
 
-        alert(`Sensitivity saved!\nGame: ${game}\nSensitivity: ${sensitivity}${separateAxes ? ` (H: ${sensH}, V: ${sensV})` : ''}\nFOV: ${fov}°`);
+        alert(`${this.t('alerts.sensitivitySavedTitle')}\n${this.t('alerts.labelGame')}: CS2/CSGO\n${this.t('alerts.labelSensitivity')}: ${sensitivity}\n${this.t('alerts.labelFov')}: ${fov}°`);
     }
 
 
@@ -2029,6 +2206,11 @@ class AimlabsGame {
         // Unlock pointer so user can click menu buttons
         document.exitPointerLock();
         this.crosshairElement.style.display = 'none';
+
+        // Hide pistol during pause
+        if (this.pistolModel) {
+            this.pistolModel.visible = false;
+        }
     }
 
     resumeGame() {
@@ -2046,6 +2228,11 @@ class AimlabsGame {
         // Lock pointer again for gameplay
         document.body.requestPointerLock();
         this.crosshairElement.style.display = 'block';
+
+        // Show pistol again
+        if (this.pistolModel) {
+            this.pistolModel.visible = true;
+        }
     }
 
 
@@ -2266,19 +2453,34 @@ class AimlabsGame {
         const preset = presets[game];
         if (!preset) return;
 
-        // Update form fields
-        document.getElementById('game-select').value = game;
-        document.getElementById('sens-input').value = preset.sensitivity;
-        document.getElementById('fov-input').value = preset.fov;
-        document.getElementById('separate-axes').checked = preset.separateAxes;
+        // Update form fields if present
+        const gameSelect = document.getElementById('game-select');
+        if (gameSelect) {
+            gameSelect.value = game;
+        }
+        const sensInput = document.getElementById('sens-input');
+        if (sensInput) {
+            sensInput.value = preset.sensitivity;
+        }
+        const fovInput = document.getElementById('fov-input');
+        if (fovInput) {
+            fovInput.value = preset.fov;
+        }
 
-        // Hide separate axes container if not needed
-        document.getElementById('separate-axes-container').style.display = preset.separateAxes ? 'block' : 'none';
+        const separateAxes = document.getElementById('separate-axes');
+        const separateAxesContainer = document.getElementById('separate-axes-container');
+        if (separateAxes) {
+            separateAxes.checked = preset.separateAxes;
+        }
+        if (separateAxesContainer) {
+            separateAxesContainer.style.display = preset.separateAxes ? 'block' : 'none';
+        }
 
-        // Clear separate axis inputs if not using them
         if (!preset.separateAxes) {
-            document.getElementById('sens-h-input').value = '';
-            document.getElementById('sens-v-input').value = '';
+            const sensHInput = document.getElementById('sens-h-input');
+            const sensVInput = document.getElementById('sens-v-input');
+            if (sensHInput) sensHInput.value = '';
+            if (sensVInput) sensVInput.value = '';
         }
 
         // Visual feedback - briefly highlight the preset button
@@ -2293,88 +2495,42 @@ class AimlabsGame {
         }
     }
 
+    // Steam64 helpers
+    getSteam64StorageKey() {
+        return window.WebClickerHistory.getSteam64StorageKey();
+    }
+
+    loadSteam64() {
+        return window.WebClickerHistory.loadSteam64();
+    }
+
+    saveSteam64() {
+        return window.WebClickerHistory.saveSteam64(this);
+    }
+
+    setSteam64Status(message, isError) {
+        return window.WebClickerHistory.setSteam64Status(this, message, isError);
+    }
+
+    async syncSessionToServer(sessionData) {
+        return window.WebClickerHistory.syncSessionToServer(this, sessionData);
+    }
+
+    async refreshHistoryFromServer() {
+        return window.WebClickerHistory.refreshHistoryFromServer(this);
+    }
+
     // History management methods
     saveSessionData() {
-        try {
-            const sessionData = {
-                timestamp: Date.now(),
-                score: this.score,
-                accuracy: this.getAccuracy(),
-                hits: this.hits,
-                misses: this.misses,
-                totalClicks: this.performanceData.totalClicks,
-                averageReactionTime: this.performanceData.averageReactionTime,
-                consistency: this.performanceData.consistency,
-                grade: this.performanceData.grade,
-                difficulty: this.difficulty,
-                gameMode: this.gameMode,
-                fov: this.fov,
-                // New performance metrics
-                reactionTimeScore: this.performanceData.reactionTimeScore,
-                accuracyScore: this.performanceData.accuracyScore,
-                overallScore: this.performanceData.overallScore,
-                performanceTier: this.performanceData.performanceTier,
-                percentile: this.performanceData.percentile,
-                maxStreak: this.performanceData.maxStreak,
-                streakBonus: this.performanceData.streakBonus,
-                warmUpAverage: this.performanceData.warmUpAverage
-            };
-
-            console.log('Saving session data:', sessionData);
-            console.log('performanceData:', this.performanceData);
-            console.log('hitTimes length:', this.hitTimes.length);
-            console.log('hitTimes:', this.hitTimes);
-
-            // Load existing history
-            const existingHistory = this.loadHistory();
-            console.log('Existing history length:', existingHistory.length);
-
-            // Add new session to beginning of array
-            existingHistory.unshift(sessionData);
-
-            // Keep only last 50 sessions to prevent storage bloat
-            const trimmedHistory = existingHistory.slice(0, 50);
-
-            // Save back to localStorage
-            localStorage.setItem('webclicker_game_history', JSON.stringify(trimmedHistory));
-            console.log('History saved, new total sessions:', trimmedHistory.length);
-
-        } catch (error) {
-            console.warn('Failed to save session data:', error);
-        }
+        return window.WebClickerHistory.saveSessionData(this);
     }
 
     loadHistory() {
-        try {
-            const historyData = localStorage.getItem('webclicker_game_history');
-            console.log('Raw history data from localStorage:', historyData);
-            const history = historyData ? JSON.parse(historyData) : [];
-            console.log('Parsed history:', history);
-            console.log('loadHistory returning', history.length, 'sessions');
-            return history;
-        } catch (error) {
-            console.warn('Failed to load history data:', error);
-            console.warn('Raw data that failed to parse:', localStorage.getItem('webclicker_game_history'));
-            return [];
-        }
+        return window.WebClickerHistory.loadHistory();
     }
 
     getBestSession() {
-        const history = this.loadHistory();
-        console.log('getBestSession - history length:', history.length);
-        if (history.length === 0) {
-            console.log('getBestSession - no history, returning null');
-            return null;
-        }
-
-        // Find session with highest score
-        const best = history.reduce((best, session) => {
-            const result = (!best || session.score > best.score) ? session : best;
-            console.log('Comparing session score', session.score, 'with best', best ? best.score : 'none', '-> new best:', result.score);
-            return result;
-        });
-        console.log('getBestSession - returning best session with score:', best.score);
-        return best;
+        return window.WebClickerHistory.getBestSession(this);
     }
 
     getRecentSessions(limit = 10) {
@@ -2383,46 +2539,11 @@ class AimlabsGame {
     }
 
     clearHistory() {
-        localStorage.removeItem('webclicker_game_history');
-        this.updateHistoryDisplay();
+        return window.WebClickerHistory.clearHistory(this);
     }
 
     updateHistoryDisplay() {
-        console.log('updateHistoryDisplay called');
-        const history = this.loadHistory();
-        console.log('Loaded history:', history);
-
-        const historyCard = document.getElementById('history-card');
-        const noHistoryMsg = document.getElementById('no-history-message');
-        const historyStats = document.getElementById('history-stats');
-
-        if (history.length === 0) {
-            console.log('No history found, showing no history message');
-            noHistoryMsg.style.display = 'block';
-            historyStats.style.display = 'none';
-            return;
-        }
-
-        console.log('History found, showing stats for', history.length, 'sessions');
-        noHistoryMsg.style.display = 'none';
-        historyStats.style.display = 'block';
-
-        // Calculate stats
-        const bestSession = this.getBestSession();
-        const totalGames = history.length;
-        const avgAccuracy = history.reduce((sum, session) => sum + session.accuracy, 0) / history.length;
-        const avgReactionTime = history.reduce((sum, session) => sum + session.averageReactionTime, 0) / history.length;
-
-        console.log('Calculated stats:', { bestSession, totalGames, avgAccuracy, avgReactionTime });
-
-        // Update stat cards
-        document.getElementById('best-score').textContent = bestSession ? bestSession.score : '0';
-        document.getElementById('total-games').textContent = totalGames;
-        document.getElementById('avg-accuracy').textContent = avgAccuracy.toFixed(1) + '%';
-        document.getElementById('avg-reaction').textContent = avgReactionTime > 0 ? Math.round(avgReactionTime) + 'ms' : 'N/A';
-
-        // Update chart
-        this.updatePerformanceChart(history.slice(0, 10)); // Show last 10 sessions
+        return window.WebClickerHistory.updateHistoryDisplay(this);
     }
 
     updatePerformanceChart(sessions) {
@@ -2494,7 +2615,3 @@ class AimlabsGame {
     }
 }
 
-// Initialize game when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    new AimlabsGame();
-});

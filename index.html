@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebClicker - Precision Aim Training</title>
+    <title>CS2 Aim Trainer - WebClicker</title>
     <style>
         * {
             margin: 0;
@@ -39,6 +39,29 @@
         .menu-header {
             text-align: center;
             margin-bottom: 0.75rem;
+        }
+
+        .header-controls {
+            margin-top: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            padding: 0.35rem 0.75rem;
+        }
+
+        .header-controls label {
+            font-size: 0.8rem;
+            color: #bdbdbd;
+        }
+
+        .header-controls select {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 0.85rem;
         }
 
         .menu-cards {
@@ -109,7 +132,8 @@
 
         .menu-card select,
         .menu-card input[type="number"],
-        .menu-card input[type="range"] {
+        .menu-card input[type="range"],
+        .menu-card input[type="text"] {
             width: 100%;
             padding: 0.75rem;
             background: rgba(255, 255, 255, 0.05);
@@ -889,26 +913,42 @@
     <div class="main-menu" id="main-menu">
         <!-- Header -->
         <div class="menu-header">
-            <div class="logo">WebClicker</div>
-            <div class="subtitle">Precision Aim Training</div>
+            <div class="logo" data-i18n="app.title">CS2 Aim Trainer</div>
+            <div class="subtitle" data-i18n="app.subtitle">Focus for CS2/CSGO players</div>
+            <div class="header-controls">
+                <label for="language-select" data-i18n="app.language">Language</label>
+                <select id="language-select">
+                    <option value="en" selected>English</option>
+                    <option value="zh">中文</option>
+                </select>
+            </div>
         </div>
 
         <!-- Menu Cards Grid -->
         <div class="menu-cards">
             <!-- Start Game Card -->
             <div class="menu-card start-card">
-                <button class="btn btn-primary" id="start-game-btn" style="width: 100%; max-width: 300px;">&gt;&gt; PLAY</button>
+                <button class="btn btn-primary" id="start-game-btn" style="width: 100%; max-width: 300px;" data-i18n="menu.play">&gt;&gt; PLAY</button>
             </div>
 
             <!-- History Card -->
             <div class="menu-card" id="history-card">
                 <div class="card-header">
-                    <div class="card-title">Game History</div>
-                    <div class="card-subtitle">Your recent performance stats</div>
+                    <div class="card-title" data-i18n="history.title">Game History</div>
+                    <div class="card-subtitle" data-i18n="history.subtitle">Your recent performance stats</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="steam64-input" data-i18n="history.steam64Label">Steam64 ID</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="steam64-input" placeholder="7656119xxxxxxxxxx" data-i18n-placeholder="history.steam64Placeholder" maxlength="20" style="flex: 1;">
+                        <button class="btn btn-secondary" id="steam64-save-btn" style="padding: 0.6rem 0.9rem; font-size: 0.9rem;" data-i18n="history.bindBtn">Bind</button>
+                    </div>
+                    <div id="steam64-status" style="margin-top: 0.5rem; font-size: 0.85rem; color: #7fd6ff;"></div>
                 </div>
 
                 <div id="history-content">
-                    <div id="no-history-message" style="text-align: center; color: #888; padding: 20px;">
+                    <div id="no-history-message" style="text-align: center; color: #888; padding: 20px;" data-i18n="history.empty">
                         No games played yet. Start your first session!
                     </div>
 
@@ -916,19 +956,19 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                             <div class="stat-card" style="padding: 12px;">
                                 <h3 id="best-score">0</h3>
-                                <p>Best Score</p>
+                                <p data-i18n="history.bestScore">Best Score</p>
                             </div>
                             <div class="stat-card" style="padding: 12px;">
                                 <h3 id="total-games">0</h3>
-                                <p>Total Games</p>
+                                <p data-i18n="history.totalGames">Total Games</p>
                             </div>
                             <div class="stat-card" style="padding: 12px;">
                                 <h3 id="avg-accuracy">0%</h3>
-                                <p>Avg Accuracy</p>
+                                <p data-i18n="history.avgAccuracy">Avg Accuracy</p>
                             </div>
                             <div class="stat-card" style="padding: 12px;">
                                 <h3 id="avg-reaction">0ms</h3>
-                                <p>Avg Reaction</p>
+                                <p data-i18n="history.avgReaction">Avg Reaction</p>
                             </div>
                         </div>
 
@@ -937,156 +977,139 @@
                         </div>
 
                         <div style="display: flex; gap: 10px; justify-content: center;">
-                            <button class="btn btn-secondary" id="clear-history-btn" style="font-size: 0.8rem; padding: 8px 16px;">Clear History</button>
+                            <button class="btn btn-secondary" id="clear-history-btn" style="font-size: 0.8rem; padding: 8px 16px;" data-i18n="history.clear">Clear History</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Sensitivity Settings Card -->
+            <!-- CS2 Settings Card -->
             <div class="menu-card">
                 <div class="card-header">
-                    <div class="card-title">Sensitivity Settings</div>
-                    <div class="card-subtitle">Configure your game sensitivity</div>
+                    <div class="card-title" data-i18n="settings.cs2Title">CS2/CSGO Settings</div>
+                    <div class="card-subtitle" data-i18n="settings.cs2Subtitle">Match your in-game feel</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Game</label>
-                    <select id="game-select">
-                        <option value="overwatch">Overwatch 2</option>
-                        <option value="valorant">Valorant</option>
-                        <option value="csgo">CS:GO</option>
-                        <option value="apex">Apex Legends</option>
-                        <option value="fortnite">Fortnite</option>
-                        <option value="cod">Call of Duty</option>
-                        <option value="rainbow">Rainbow Six Siege</option>
+                    <label for="aspect-ratio-select" data-i18n="settings.aspectRatio">Canvas Aspect Ratio</label>
+                    <select id="aspect-ratio-select">
+                        <option value="16:9" selected data-i18n="settings.aspect169">16:9 (106.26° FOV)</option>
+                        <option value="4:3" data-i18n="settings.aspect43">4:3 (90° FOV)</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Sensitivity</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
-                        <input type="number" id="sens-input" placeholder="15.6" step="0.1" style="flex: 1;">
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="separate-axes">
-                            <label style="margin: 0; cursor: pointer;">H/V</label>
-                        </div>
-                    </div>
-                    <div id="separate-axes-container" style="display: none; margin-top: 0.75rem;">
-                        <div style="display: flex; gap: 0.5rem;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Horizontal</label>
-                                <input type="number" id="sens-h-input" placeholder="15.6" step="0.1">
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Vertical</label>
-                                <input type="number" id="sens-v-input" placeholder="15.6" step="0.1">
-                            </div>
-                        </div>
-                    </div>
+                    <label for="sens-input" data-i18n="settings.sensitivity">Sensitivity</label>
+                    <input type="number" id="sens-input" placeholder="2.0" step="0.01">
                 </div>
 
                 <div class="form-group">
-                    <label>FOV</label>
+                    <label for="fov-input" data-i18n="settings.fovInput">FOV</label>
                     <input type="number" id="fov-input" placeholder="90">
                 </div>
 
                 <div class="button-group">
-                    <button class="btn btn-primary" id="test-sens-btn">Test</button>
-                    <button class="btn btn-secondary" id="save-sens-btn">Save</button>
+                    <button class="btn btn-primary" id="save-sens-btn" data-i18n="settings.apply">Apply</button>
                 </div>
 
                 <div class="preset-buttons">
-                    <span style="color: #888; font-size: 0.9rem; width: 100%; margin-bottom: 0.5rem;">Quick Presets:</span>
-                    <button class="preset-btn" id="preset-ow">OW2</button>
-                    <button class="preset-btn" id="preset-valorant">Valorant</button>
-                    <button class="preset-btn" id="preset-fortnite">Fortnite</button>
-                    <button class="preset-btn" id="preset-csgo">CS:GO</button>
+                    <span style="color: #888; font-size: 0.9rem; width: 100%; margin-bottom: 0.5rem;" data-i18n="settings.quickPreset">Quick Preset:</span>
+                    <button class="preset-btn" id="preset-csgo" data-i18n="settings.presetCs">CS2/CSGO</button>
                 </div>
             </div>
 
             <!-- Game Settings Card -->
             <div class="menu-card">
                 <div class="card-header">
-                    <div class="card-title">Game Settings</div>
-                    <div class="card-subtitle">Customize your training experience</div>
+                    <div class="card-title" data-i18n="settings.gameTitle">Game Settings</div>
+                    <div class="card-subtitle" data-i18n="settings.gameSubtitle">Customize your training experience</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Difficulty</label>
+                    <label data-i18n="settings.difficulty">Difficulty</label>
                     <select id="difficulty-select">
-                        <option value="easy">Easy</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="hard">Hard</option>
-                        <option value="expert">Expert</option>
+                        <option value="easy" data-i18n="settings.difficultyEasy">Easy</option>
+                        <option value="medium" selected data-i18n="settings.difficultyMedium">Medium</option>
+                        <option value="hard" data-i18n="settings.difficultyHard">Hard</option>
+                        <option value="expert" data-i18n="settings.difficultyExpert">Expert</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Game Mode</label>
+                    <label data-i18n="settings.gameMode">Game Mode</label>
                     <select id="game-mode-select">
-                        <option value="jumbo-tile-frenzy" selected>Jumbo Tile Frenzy</option>
-                        <option value="speed-test">Speed Test</option>
-                        <option value="precision">Precision</option>
+                        <option value="jumbo-tile-frenzy" selected data-i18n="settings.modeJumbo">Jumbo Tile Frenzy</option>
+                        <option value="speed-test" data-i18n="settings.modeSpeed">Speed Test</option>
+                        <option value="precision" data-i18n="settings.modePrecision">Precision</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Target Lifetime: <span id="target-lifetime-value">2.0s</span></label>
+                    <label><span data-i18n="settings.targetLifetime">Target Lifetime</span>: <span id="target-lifetime-value">2.0s</span></label>
                     <input type="range" id="target-lifetime" min="1.0" max="5.0" step="0.1" value="2.0">
                 </div>
 
                 <div class="form-group">
-                    <label>Spawn Delay: <span id="spawn-delay-value">1.0s</span></label>
+                    <label><span data-i18n="settings.spawnDelay">Spawn Delay</span>: <span id="spawn-delay-value">1.0s</span></label>
                     <input type="range" id="spawn-delay" min="0.5" max="3.0" step="0.1" value="1.0">
                 </div>
 
                 <div class="form-group">
-                    <label>FOV: <span id="fov-value">90°</span></label>
+                    <label><span data-i18n="settings.fov">FOV</span>: <span id="fov-value">90°</span></label>
                     <input type="range" id="fov-slider" min="60" max="120" step="5" value="90">
+                </div>
+
+                <div class="form-group">
+                    <label><span data-i18n="settings.targetSize">Target Size</span>: <span id="target-size-value">1.0x</span></label>
+                    <input type="range" id="target-size" min="0.6" max="1.6" step="0.1" value="1.0">
+                </div>
+
+                <div class="form-group">
+                    <label><span data-i18n="settings.targetDistance">Target Distance</span>: <span id="target-distance-value">3.0</span></label>
+                    <input type="range" id="target-distance" min="2.0" max="6.0" step="0.1" value="3.0">
                 </div>
             </div>
 
             <!-- Crosshair Settings Card -->
             <div class="menu-card">
                 <div class="card-header">
-                    <div class="card-title">Crosshair Settings</div>
-                    <div class="card-subtitle">Customize your aiming reticle</div>
+                    <div class="card-title" data-i18n="crosshair.title">Crosshair Settings</div>
+                    <div class="card-subtitle" data-i18n="crosshair.subtitle">Customize your aiming reticle</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Crosshair Style</label>
+                    <label data-i18n="crosshair.style">Crosshair Style</label>
                     <select id="crosshair-style">
-                        <option value="default" selected>Default (White)</option>
-                        <option value="red">Red</option>
-                        <option value="green">Green</option>
-                        <option value="blue">Blue</option>
-                        <option value="cyan">Cyan</option>
-                        <option value="magenta">Magenta</option>
-                        <option value="yellow">Yellow</option>
+                        <option value="default" selected data-i18n="crosshair.default">Default (White)</option>
+                        <option value="red" data-i18n="crosshair.red">Red</option>
+                        <option value="green" data-i18n="crosshair.green">Green</option>
+                        <option value="blue" data-i18n="crosshair.blue">Blue</option>
+                        <option value="cyan" data-i18n="crosshair.cyan">Cyan</option>
+                        <option value="magenta" data-i18n="crosshair.magenta">Magenta</option>
+                        <option value="yellow" data-i18n="crosshair.yellow">Yellow</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>Crosshair Size: <span id="crosshair-size-value">20px</span></label>
+                    <label><span data-i18n="crosshair.size">Crosshair Size</span>: <span id="crosshair-size-value">20px</span></label>
                     <input type="range" id="crosshair-size" min="12" max="40" step="2" value="20">
                 </div>
 
                 <div class="form-group">
-                    <label>Crosshair Thickness: <span id="crosshair-thickness-value">2px</span></label>
+                    <label><span data-i18n="crosshair.thickness">Crosshair Thickness</span>: <span id="crosshair-thickness-value">2px</span></label>
                     <input type="range" id="crosshair-thickness" min="1" max="6" step="1" value="2">
                 </div>
 
                 <div class="form-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="crosshair-dot">
-                        <label style="margin: 0; cursor: pointer;">Center Dot</label>
+                        <label style="margin: 0; cursor: pointer;" data-i18n="crosshair.centerDot">Center Dot</label>
                     </div>
                 </div>
 
                 <div class="button-group">
-                    <button class="btn btn-secondary" id="reset-crosshair-btn">Reset</button>
-                    <button class="btn btn-secondary" id="preview-crosshair-btn">Preview</button>
+                    <button class="btn btn-secondary" id="reset-crosshair-btn" data-i18n="crosshair.reset">Reset</button>
+                    <button class="btn btn-secondary" id="preview-crosshair-btn" data-i18n="crosshair.preview">Preview</button>
                 </div>
             </div>
         </div>
@@ -1106,29 +1129,29 @@
 
 
             <div id="game-over">
-                <h2>Training Complete!</h2>
+                <h2 data-i18n="gameOver.title">Training Complete!</h2>
 
                 <!-- Performance Grade Section -->
                 <div class="performance-header">
                     <div>
-                        <div class="performance-title">Performance Grade</div>
+                        <div class="performance-title" data-i18n="gameOver.performanceGrade">Performance Grade</div>
                         <div id="performance-grade" class="performance-grade grade-f">F</div>
                     </div>
                 </div>
 
                 <!-- Best Score Section -->
                 <div id="best-score-section" style="text-align: center; margin-bottom: 2rem; display: none;">
-                    <div id="new-highscore-banner" style="display: none; background: linear-gradient(45deg, #ffd700, #ffb347); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; animation: pulse 1s ease-in-out infinite;">
+                    <div id="new-highscore-banner" style="display: none; background: linear-gradient(45deg, #ffd700, #ffb347); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1.2rem; margin-bottom: 15px; animation: pulse 1s ease-in-out infinite;" data-i18n="gameOver.newHighscore">
                         🏆 NEW HIGHSCORE! 🏆
                     </div>
                     <div style="display: flex; justify-content: center; gap: 30px; align-items: center;">
                         <div style="text-align: center;">
-                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600;">Your Score</div>
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600;" data-i18n="gameOver.yourScore">Your Score</div>
                             <div style="font-size: 2rem; font-weight: bold; color: #fff;" id="current-score-display">0</div>
                         </div>
-                        <div style="color: #888; font-size: 1.5rem;">vs</div>
+                        <div style="color: #888; font-size: 1.5rem;" data-i18n="gameOver.vs">vs</div>
                         <div style="text-align: center;">
-                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600;">Best Score</div>
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600;" data-i18n="gameOver.bestScore">Best Score</div>
                             <div style="font-size: 2rem; font-weight: bold; color: #ffd700;" id="best-score-display">0</div>
                         </div>
                     </div>
@@ -1138,85 +1161,85 @@
                 <div class="stats-grid">
                     <div class="stat-card">
                         <h3 id="final-score">0</h3>
-                        <p>Final Score</p>
+                        <p data-i18n="gameOver.finalScore">Final Score</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="final-time">0.00s</h3>
-                        <p>Time</p>
+                        <p data-i18n="gameOver.time">Time</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="final-accuracy">100%</h3>
-                        <p>Accuracy</p>
+                        <p data-i18n="gameOver.accuracy">Accuracy</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="avg-reaction-time">N/A</h3>
-                        <p>Avg Reaction Time</p>
+                        <p data-i18n="gameOver.avgReaction">Avg Reaction Time</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="final-hits">0</h3>
-                        <p>Hits</p>
+                        <p data-i18n="gameOver.hits">Hits</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="final-misses">0</h3>
-                        <p>Misses</p>
+                        <p data-i18n="gameOver.misses">Misses</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="total-clicks">0</h3>
-                        <p>Total Clicks</p>
+                        <p data-i18n="gameOver.totalClicks">Total Clicks</p>
                     </div>
                     <div class="stat-card">
                         <h3 id="consistency-score">N/A</h3>
-                        <p>Consistency</p>
+                        <p data-i18n="gameOver.consistency">Consistency</p>
                     </div>
                 </div>
 
                 <!-- Enhanced Performance Metrics -->
                 <div class="enhanced-metrics" style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; border: 1px solid rgba(255, 255, 255, 0.1);">
-                    <h3 style="color: #4ecdc4; margin-bottom: 1rem; font-size: 1.2rem; text-align: center;">Advanced Performance Analysis</h3>
+                    <h3 style="color: #4ecdc4; margin-bottom: 1rem; font-size: 1.2rem; text-align: center;" data-i18n="gameOver.advancedTitle">Advanced Performance Analysis</h3>
                     
                     <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Performance Tier</div>
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.performanceTier">Performance Tier</div>
                             <div id="performance-tier" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Percentile Ranking</div>
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.percentile">Percentile Ranking</div>
                             <div id="percentile-ranking" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #ff6b6b; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Reaction Time Score</div>
+                            <div style="color: #ff6b6b; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.reactionScore">Reaction Time Score</div>
                             <div id="reaction-time-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Accuracy Score</div>
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.accuracyScore">Accuracy Score</div>
                             <div id="accuracy-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Overall Score</div>
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.overallScore">Overall Score</div>
                             <div id="overall-score" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Game Mode</div>
+                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.mode">Game Mode</div>
                             <div id="game-mode-display" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Best Streak</div>
+                            <div style="color: #ffd700; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.bestStreak">Best Streak</div>
                             <div id="best-streak" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Streak Bonus</div>
+                            <div style="color: #4ecdc4; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.streakBonus">Streak Bonus</div>
                             <div id="streak-bonus" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                         
                         <div class="metric-item" style="text-align: center; padding: 0.8rem; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;">Warm-up Avg</div>
+                            <div style="color: #888; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem;" data-i18n="gameOver.warmupAvg">Warm-up Avg</div>
                             <div id="warmup-average" style="font-size: 1.3rem; font-weight: bold; color: #fff;">N/A</div>
                         </div>
                     </div>
@@ -1224,11 +1247,11 @@
 
                 <!-- Progress Bars Section -->
                 <div class="progress-section">
-                    <h3 style="color: #fff; margin-bottom: 20px; font-size: 1.3rem;">Performance Metrics</h3>
+                <h3 style="color: #fff; margin-bottom: 20px; font-size: 1.3rem;" data-i18n="gameOver.metricsTitle">Performance Metrics</h3>
 
                     <div class="progress-item">
                         <div class="progress-label">
-                            <span>Accuracy</span>
+                        <span data-i18n="gameOver.accuracy">Accuracy</span>
                             <span id="accuracy-value">100%</span>
                         </div>
                         <div class="progress-bar">
@@ -1238,7 +1261,7 @@
 
                     <div class="progress-item">
                         <div class="progress-label">
-                            <span>Reaction Time Rating</span>
+                        <span data-i18n="gameOver.reactionRating">Reaction Time Rating</span>
                             <span id="efficiency-value">100%</span>
                         </div>
                         <div class="progress-bar">
@@ -1248,7 +1271,7 @@
 
                     <div class="progress-item">
                         <div class="progress-label">
-                            <span>Consistency Rating</span>
+                        <span data-i18n="gameOver.consistencyRating">Consistency Rating</span>
                             <span id="hit-rate-value">100%</span>
                         </div>
                         <div class="progress-bar">
@@ -1258,7 +1281,7 @@
 
                     <div class="progress-item">
                         <div class="progress-label">
-                            <span>Overall Performance</span>
+                        <span data-i18n="gameOver.overallPerformance">Overall Performance</span>
                             <span id="reaction-time-value">N/A</span>
                         </div>
                         <div class="progress-bar">
@@ -1278,8 +1301,8 @@
 
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 2rem;">
-                    <button class="btn" id="restart-btn" style="flex: 1; max-width: 200px;">Play Again</button>
-                    <button class="btn secondary" id="menu-btn" style="flex: 1; max-width: 200px;">Back to Menu</button>
+                <button class="btn" id="restart-btn" style="flex: 1; max-width: 200px;" data-i18n="gameOver.playAgain">Play Again</button>
+                <button class="btn secondary" id="menu-btn" style="flex: 1; max-width: 200px;" data-i18n="gameOver.backToMenu">Back to Menu</button>
                 </div>
             </div>
 
@@ -1288,18 +1311,23 @@
 
         <!-- Pause Menu -->
         <div id="pause-menu" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background: rgba(0, 0, 0, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 2rem; min-width: 350px; text-align: center;">
-            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;">Paused</div>
-            <div style="margin-bottom: 2rem; color: #888; font-size: 1rem;">
+            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff;" data-i18n="pause.title">Paused</div>
+            <div style="margin-bottom: 2rem; color: #888; font-size: 1rem;" data-i18n="pause.subtitle">
                 Press ESC to resume
             </div>
 
-            <button class="menu-button" id="restart-pause-btn" style="margin-bottom: 1rem;">Restart</button>
-            <button class="menu-button primary" id="menu-pause-btn">Main Menu</button>
+            <button class="menu-button" id="restart-pause-btn" style="margin-bottom: 1rem;" data-i18n="pause.restart">Restart</button>
+            <button class="menu-button primary" id="menu-pause-btn" data-i18n="pause.menu">Main Menu</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
     <script src="game.js"></script>
+    <script src="game-i18n.js"></script>
+    <script src="game-history.js"></script>
+    <script src="game-environment.js"></script>
+    <script src="game-targets.js"></script>
+    <script src="game-main.js"></script>
 </body>
 </html>
